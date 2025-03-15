@@ -1,10 +1,9 @@
 <template>
   <div class="header">
     <div class="header-left">
-      <input type="text" placeholder="Fop Name" />
+      <FopDropdown />
     </div>
     <div class="header-right">
-      <button>Enter your monobank api key</button>
       <button>
         gmail login
         <span style="margin-left: 6px;">👤</span>
@@ -12,3 +11,7 @@
     </div>
   </div>
 </template>
+
+<script setup>
+  import FopDropdown from './FopDropdown.vue';
+</script>

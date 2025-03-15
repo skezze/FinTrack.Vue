@@ -1,6 +1,6 @@
 <template>
     <div class="sidebar">
-      <h2>FinTrack</h2>
+      <div class="logo">Fin<span>Track</span></div>
       <nav>
         <a href="#">Profile</a>
         <a href="#">Events</a>
@@ -25,4 +25,20 @@
     }
   }
   </script>
+
+  <style scoped>
+  .logo {
+    font-size: 30px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: #b33;
+  }
+
+  .logo span {
+    color: #333;
+  }
+  nav a {
+    font-size: 25px;
+  }
+  </style>
   
