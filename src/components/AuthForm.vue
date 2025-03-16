@@ -12,7 +12,7 @@
 
       <button class="google-button" @click="loginWithGoogle">
         Login via Google
-        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Logo_2013_Google.png" alt="G" class="google-icon" />
+        <img src="https://img.icons8.com/color/512/google-logo.png" alt="G" class="google-icon" />
       </button>
 
       <p class="switch-mode">
@@ -24,7 +24,11 @@
 </template>
 
 <script setup>
+import { host } from '@/enviroment'
 import { ref } from 'vue'
+import axios from 'axios'
+import { removeToken, saveToken } from '@/helpers/auth'
+
 
 const login = ref('')
 const password = ref('')
@@ -34,11 +38,26 @@ function toggleMode() {
   isLogin.value = !isLogin.value
 }
 
-function handleSubmit() {
-  console.log(isLogin.value ? 'Logging in' : 'Registering', login.value, password.value)
+async function handleSubmit() {
+  const loginData = {
+  username: login.value,
+  password: password.value
+};
+  
+await axios.post(`${host}/SignIn/Login`, loginData, {
+  headers: {
+    'Accept': '*/*',
+    'Content-Type': 'application/json'
+  }
+})
+.then(response => {
+  removeToken()
+  saveToken(response.data)
+});
 }
 
-function loginWithGoogle() {
+async function loginWithGoogle() {
+  
   console.log('Login with Google clicked')
 }
 </script>

@@ -4,14 +4,8 @@
       <TaxInfoWidget />
     </div>
   </template>
-  
-  <script>
+   
+  <script setup>
   import TaxInfoWidget from '@/components/TaxInfoWidget.vue'
-  export default {
-    name: 'MainContent',
-    components: {
-      TaxInfoWidget
-    }
-  }
   </script>
   

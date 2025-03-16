@@ -13,5 +13,5 @@
 </template>
 
 <script setup>
-  import FopDropdown from './FopDropdown.vue';
+  import FopDropdown from '@/components/FopDropdown.vue';
 </script>

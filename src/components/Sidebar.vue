@@ -12,17 +12,12 @@
     </div>
   </template>
   
-  <script>
+  <script setup>
   import { removeToken } from '@/helpers/auth'
   
-  export default {
-    name: 'Sidebar',
-    methods: {
-      logout() {
-        removeToken()
-        window.location.href = '/auth'
-      }
-    }
+  function logout() {
+    removeToken()
+    window.location.href = '/auth'
   }
   </script>
 
