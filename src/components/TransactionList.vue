@@ -3,8 +3,8 @@
     <div class="filters">
       <input
         v-model="searchQuery"
-        placeholder="Поиск по комменту или названию"
-        class="input"
+        placeholder="Поиск (описание, коммент, контрагент)"
+        class="input search-input"
       />
       <input type="date" v-model="startDate" class="input" />
       <input type="date" v-model="endDate" class="input" />
@@ -12,20 +12,29 @@
         <option value="desc">Сначала больше</option>
         <option value="asc">Сначала меньше</option>
       </select>
+      <button @click="clearFilters" class="btn clear-btn" title="Сбросить все фильтры">
+        ✕ Сбросить
+      </button>
     </div>
 
-    <div v-if="paginatedTransactions.length === 0" class="no-results">
+    <div class="results-info" v-if="!isLoading && (debouncedSearchQuery || startDate || endDate)">
+         Найдено транзакций: {{ filteredTransactions.length }}
+     </div>
+
+     <div v-if="!isLoading && !error && paginatedTransactions.length === 0" class="no-results">
        Нет транзакций, соответствующих вашим фильтрам.
     </div>
 
-     <TransactionItem
-      v-else
-      v-for="tx in paginatedTransactions"
-      :key="tx.id"
-      :transaction="tx"
-    />
+     <div v-if="!isLoading && !error && paginatedTransactions.length > 0" class="items-container">
+        <TransactionItem
+            v-for="tx in paginatedTransactions"
+            :key="tx.id"
+            :transaction="tx"
+        />
+    </div>
 
-    <div v-if="filteredTransactions.length > 0 && totalPages > 1" class="pagination">
+
+    <div v-if="!isLoading && !error && filteredTransactions.length > 0 && totalPages > 1" class="pagination">
       <button @click="prevPage" :disabled="currentPage === 1" class="btn">
         Назад
       </button>
@@ -38,161 +47,92 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-// Make sure TransactionItem.vue (the code you provided) is in the same folder
+import { ref, computed, watch } from 'vue'
+// Убедитесь, что TransactionItem.vue находится в той же папке
 import TransactionItem from './TransactionItem.vue'
 
-// --- Updated Static Data for Preview ---
-// Amounts are now in kopiykas/cents (integer)
-// Added optional cashbackAmount, counterName, counterIban fields
+// --- Статические данные для предпросмотра ---
+// В реальном приложении замените на загрузку данных
 const sampleTransactions = ref([
-  {
-    id: 1,
-    time: Math.floor(new Date('2024-03-25T10:00:00Z').getTime() / 1000),
-    description: 'Супермаркет "Сільпо"',
-    comment: 'Молоко, хліб, овочі',
-    amount: -15050, // -150.50 ₴
-    cashbackAmount: 150, // 1.50 ₴ cashback
-    counterName: 'Сільпо #123',
-    counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXX'
-  },
-  {
-    id: 2,
-    time: Math.floor(new Date('2024-03-26T15:30:00Z').getTime() / 1000),
-    description: 'Зарплата',
-    comment: 'За березень',
-    amount: 5000000, // 50000.00 ₴
-    cashbackAmount: null, // No cashback
-    counterName: 'ТОВ "Рога та Копита"',
-    counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXY'
-   },
-  {
-    id: 3,
-    time: Math.floor(new Date('2024-03-27T09:00:00Z').getTime() / 1000),
-    description: 'Кав\'ярня "Aroma Kava"',
-    comment: 'Капучино',
-    amount: -8500, // -85.00 ₴
-    cashbackAmount: 85, // 0.85 ₴ cashback
-    counterName: 'Aroma Kava',
-    counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXZ'
-  },
-  {
-    id: 4,
-    time: Math.floor(new Date('2024-03-27T18:00:00Z').getTime() / 1000),
-    description: 'Ресторан "Уют"',
-    comment: 'Вечеря з друзями',
-    amount: -350075, // -3500.75 ₴
-    cashbackAmount: null,
-    counterName: 'Ресторан Уют',
-    counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXA'
-  },
-  {
-    id: 5,
-    time: Math.floor(new Date('2024-03-28T11:00:00Z').getTime() / 1000),
-    description: 'Онлайн підписка (Spotify)',
-    comment: 'Музичний сервіс',
-    amount: -15000, // -150.00 ₴
-    cashbackAmount: null,
-    counterName: 'Spotify AB',
-    counterIban: 'SEXXXXXXXXXXXXXXXXXXXXXXXXX'
-   },
-  {
-    id: 6,
-    time: Math.floor(new Date('2024-03-29T14:00:00Z').getTime() / 1000),
-    description: 'Оплата за фріланс',
-    comment: 'Проект "Альфа"',
-    amount: 1500000, // 15000.00 ₴
-    cashbackAmount: null,
-    counterName: 'John Doe',
-    counterIban: 'GBXXXXXXXXXXXXXXXXXXXXXXXXX'
-   },
-  {
-    id: 7,
-    time: Math.floor(new Date('2024-03-29T20:00:00Z').getTime() / 1000),
-    description: 'Кінотеатр "Multiplex"',
-    comment: 'Квитки на новий фільм',
-    amount: -48000, // -480.00 ₴
-    cashbackAmount: 480, // 4.80 ₴ cashback
-    counterName: 'Multiplex Cinema',
-    counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXB'
-  },
-  {
-    id: 8,
-    time: Math.floor(new Date('2024-03-30T08:30:00Z').getTime() / 1000),
-    description: 'Аптека "Доброго Дня"',
-    comment: 'Ліки',
-    amount: -55020, // -550.20 ₴
-    cashbackAmount: null,
-    counterName: 'Аптека Доброго Дня #5',
-    counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXC'
-  },
-  {
-    id: 9,
-    time: Math.floor(new Date('2024-03-30T12:00:00Z').getTime() / 1000),
-    description: 'Переказ Олені П.',
-    comment: 'Повернення боргу',
-    amount: -100000, // -1000.00 ₴
-    cashbackAmount: null,
-    counterName: 'Олена Петренко',
-    counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXD'
-   },
-  {
-    id: 10,
-    time: Math.floor(new Date('2024-03-31T09:00:00Z').getTime() / 1000),
-    description: 'Сніданок у кафе "Львівські Круасани"',
-    comment: '', // Empty comment
-    amount: -21000, // -210.00 ₴
-    cashbackAmount: 210, // 2.10 ₴ cashback
-    counterName: 'Львівські Круасани',
-    counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXE'
-  },
+  { id: 1, time: Math.floor(new Date('2024-03-25T10:00:00Z').getTime() / 1000), description: 'Супермаркет "Сільпо"', comment: 'Молоко, хліб, овочі', amount: -15050, cashbackAmount: 150, counterName: 'Сільпо #123', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXX' },
+  { id: 2, time: Math.floor(new Date('2024-03-26T15:30:00Z').getTime() / 1000), description: 'Зарплата', comment: 'За березень', amount: 5000000, cashbackAmount: null, counterName: 'ТОВ "Рога та Копита"', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXY' },
+  { id: 3, time: Math.floor(new Date('2024-03-27T09:00:00Z').getTime() / 1000), description: 'Кав\'ярня "Aroma Kava"', comment: 'Капучино', amount: -8500, cashbackAmount: 85, counterName: 'Aroma Kava', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXZ' },
+  { id: 4, time: Math.floor(new Date('2024-03-27T18:00:00Z').getTime() / 1000), description: 'Ресторан "Уют"', comment: 'Вечеря з друзями', amount: -350075, cashbackAmount: null, counterName: 'Ресторан Уют', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXA' },
+  { id: 5, time: Math.floor(new Date('2024-03-28T11:00:00Z').getTime() / 1000), description: 'Онлайн підписка (Spotify)', comment: 'Музичний сервіс', amount: -15000, cashbackAmount: null, counterName: 'Spotify AB', counterIban: 'SEXXXXXXXXXXXXXXXXXXXXXXXXX' },
+  { id: 6, time: Math.floor(new Date('2024-03-29T14:00:00Z').getTime() / 1000), description: 'Оплата за фріланс', comment: 'Проект "Альфа"', amount: 1500000, cashbackAmount: null, counterName: 'John Doe', counterIban: 'GBXXXXXXXXXXXXXXXXXXXXXXXXX' },
+  { id: 7, time: Math.floor(new Date('2024-03-29T20:00:00Z').getTime() / 1000), description: 'Кінотеатр "Multiplex"', comment: 'Квитки на новий фільм', amount: -48000, cashbackAmount: 480, counterName: 'Multiplex Cinema', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXB' },
+  { id: 8, time: Math.floor(new Date('2024-03-30T08:30:00Z').getTime() / 1000), description: 'Аптека "Доброго Дня"', comment: 'Ліки', amount: -55020, cashbackAmount: null, counterName: 'Аптека Доброго Дня #5', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXC' },
+  { id: 9, time: Math.floor(new Date('2024-03-30T12:00:00Z').getTime() / 1000), description: 'Переказ Олені П.', comment: 'Повернення боргу', amount: -100000, cashbackAmount: null, counterName: 'Олена Петренко', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXD' },
+  { id: 10, time: Math.floor(new Date('2024-03-31T09:00:00Z').getTime() / 1000), description: 'Сніданок у кафе "Львівські Круасани"', comment: '', amount: -21000, cashbackAmount: 210, counterName: 'Львівські Круасани', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXE' },
 ]);
-// ---------------------------------------
+// --- Конец статических данных ---
 
-// Props definition is removed/commented as we use static data
-/*
-const props = defineProps({
-  transactions: {
-    type: Array,
-    required: true
-  }
-})
-*/
+// Состояния для реальной загрузки (пример)
+const isLoading = ref(false); // Установите в true при начале загрузки
+const error = ref(null);     // Установите сообщение об ошибке при неудаче
 
-const searchQuery = ref('')
-const startDate = ref('')
-const endDate = ref('')
-const sortOrder = ref('desc') // Default sort: highest amount first
-const currentPage = ref(1)
-const itemsPerPage = 5
+// Фильтры и пагинация
+const searchQuery = ref('');
+const startDate = ref('');
+const endDate = ref('');
+const sortOrder = ref('desc'); // Сортировка по умолчанию
+const currentPage = ref(1);
+const itemsPerPage = 5; // Можно сделать настраиваемым
 
+// Debounce для поиска
+const debouncedSearchQuery = ref('');
+let debounceTimer = null;
+
+watch(searchQuery, (newValue) => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        debouncedSearchQuery.value = newValue;
+        currentPage.value = 1; // Сброс на первую страницу при изменении поискового запроса
+    }, 350); // Задержка в 350 мс перед применением поиска
+});
+
+// Функция сброса фильтров
+function clearFilters() {
+  searchQuery.value = '';
+  // debouncedSearchQuery.value = ''; // Обновится через watch searchQuery
+  startDate.value = '';
+  endDate.value = '';
+  sortOrder.value = 'desc';
+  currentPage.value = 1;
+}
+
+// Отфильтрованные транзакции (с использованием debouncedSearchQuery)
 const filteredTransactions = computed(() => {
-  // Use sampleTransactions instead of props.transactions
+  // В реальном приложении здесь будет ref с загруженными данными
   let transactionsToFilter = [...sampleTransactions.value];
 
-  // Apply search filter
-  if (searchQuery.value) {
-    const lowerQuery = searchQuery.value.toLowerCase();
+  // Применяем поиск (после debounce)
+  const lowerQuery = debouncedSearchQuery.value.toLowerCase().trim();
+  if (lowerQuery) {
     transactionsToFilter = transactionsToFilter.filter(tx =>
       tx.description.toLowerCase().includes(lowerQuery) ||
       (tx.comment && tx.comment.toLowerCase().includes(lowerQuery)) ||
-      (tx.counterName && tx.counterName.toLowerCase().includes(lowerQuery)) // Added search by counterName
+      (tx.counterName && tx.counterName.toLowerCase().includes(lowerQuery))
     );
   }
 
-  // Apply date filters
+  // Применяем фильтр по датам
   if (startDate.value) {
-    const startDt = new Date(startDate.value);
-    startDt.setHours(0, 0, 0, 0); // Set to start of the day
-    transactionsToFilter = transactionsToFilter.filter(tx => new Date(tx.time * 1000) >= startDt);
+    try {
+        const startDt = new Date(startDate.value);
+        startDt.setHours(0, 0, 0, 0);
+        transactionsToFilter = transactionsToFilter.filter(tx => new Date(tx.time * 1000) >= startDt);
+    } catch (e) { console.error("Invalid start date", e); } // Обработка некорректной даты
   }
   if (endDate.value) {
-    const endDt = new Date(endDate.value);
-    endDt.setHours(23, 59, 59, 999); // Set to end of the day
-    transactionsToFilter = transactionsToFilter.filter(tx => new Date(tx.time * 1000) <= endDt);
+     try {
+        const endDt = new Date(endDate.value);
+        endDt.setHours(23, 59, 59, 999);
+        transactionsToFilter = transactionsToFilter.filter(tx => new Date(tx.time * 1000) <= endDt);
+     } catch (e) { console.error("Invalid end date", e); } // Обработка некорректной даты
   }
 
-  // Apply sorting (works correctly with integer amounts)
+  // Применяем сортировку
   transactionsToFilter.sort((a, b) => {
     return sortOrder.value === 'desc'
       ? b.amount - a.amount
@@ -202,121 +142,163 @@ const filteredTransactions = computed(() => {
   return transactionsToFilter;
 });
 
+// Общее количество страниц
 const totalPages = computed(() => {
-    if (filteredTransactions.value.length === 0) return 1;
+    if (filteredTransactions.value.length === 0) return 1; // Показываем "Страница 1 из 1", даже если пусто
     return Math.ceil(filteredTransactions.value.length / itemsPerPage);
 });
 
+// Транзакции для текущей страницы
 const paginatedTransactions = computed(() => {
-  // Reset to page 1 if filters reduce results below current page
+  // Сброс на последнюю доступную страницу, если текущая стала невалидной
   if (currentPage.value > totalPages.value && totalPages.value > 0) {
      currentPage.value = totalPages.value;
-  } else if (totalPages.value === 0) {
-      currentPage.value = 1; // Stay on page 1 if no results
   }
 
-  const start = (currentPage.value - 1) * itemsPerPage
-  return filteredTransactions.value.slice(start, start + itemsPerPage)
+  const start = (currentPage.value - 1) * itemsPerPage;
+  return filteredTransactions.value.slice(start, start + itemsPerPage);
 })
 
+// Функции пагинации
 function nextPage() {
-  if (currentPage.value < totalPages.value) currentPage.value++
+  if (currentPage.value < totalPages.value) currentPage.value++;
 }
 function prevPage() {
-  if (currentPage.value > 1) currentPage.value--
+  if (currentPage.value > 1) currentPage.value--;
 }
+
+// Если бы данные грузились, здесь был бы onMounted с вызовом fetch
+// onMounted(() => { /* fetch data */ })
+
 </script>
 
 <style scoped>
-/* Styles are identical to the previous version, including them for completeness */
 .transaction-list {
-  padding: 1.5rem;
-  background-color: #fff8f5; /* Light peach background */
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); /* Slightly softer shadow */
-  max-width: 900px;
-  margin: 2rem auto; /* Added top/bottom margin */
-  font-family: sans-serif; /* Added basic font */
+  /* Убраны background-color, max-width и margin: auto */
+  /* Добавлены отступы только сверху/снизу/внутри */
+  padding: 1.5rem 1rem; /* Внутренние отступы, по бокам меньше */
+  margin-bottom: 2rem; /* Отступ снизу компонента */
+  /* width: 100%; */ /* Это обычно не нужно, блочные элементы и так занимают всю ширину */
+  box-sizing: border-box; /* Чтобы padding не увеличивал общую ширину */
+  font-family: sans-serif;
 }
 
 .filters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 25px; /* Increased spacing */
-  justify-content: center; /* Center filters */
-  padding-bottom: 20px; /* Add padding below filters */
-  border-bottom: 1px solid #f0c3bd; /* Separator line */
+  flex-wrap: wrap; /* Разрешаем перенос на новую строку */
+  gap: 10px; /* Промежутки между элементами */
+  margin-bottom: 25px;
+  justify-content: flex-start; /* Выравнивание по началу строки */
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee; /* Сделал разделитель светлее */
 }
 
 .input {
-  padding: 9px 14px; /* Slightly larger padding */
-  border: 1px solid #dcb7ae; /* Peach-toned border */
-  border-radius: 8px; /* More rounded corners */
-  font-size: 1rem; /* Standard font size */
+  padding: 8px 12px; /* Уменьшил padding для компактности */
+  border: 1px solid #ccc; /* Стандартная рамка */
+  border-radius: 6px;
+  font-size: 0.95rem;
   background-color: #fff;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease; /* Smooth transitions */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-/* Style specific input types */
-.input[type="date"],
-input.input, /* Use input.input for text input */
+.input.search-input {
+    flex-grow: 1; /* Позволяем полю поиска занимать доступное пространство */
+    min-width: 200px; /* Минимальная ширина поиска */
+}
+.input[type="date"] {
+    min-width: 140px;
+}
 select.input {
-  min-width: 150px; /* Ensure decent width */
+    min-width: 160px;
 }
 
 
 .input:focus {
   outline: none;
-  border-color: #e18877; /* Highlight color */
-  box-shadow: 0 0 0 3px rgba(225, 136, 119, 0.25); /* Softer focus ring */
+  border-color: #e18877;
+  box-shadow: 0 0 0 2px rgba(225, 136, 119, 0.2); /* Тень при фокусе */
+}
+
+.btn {
+  background-color: #e18877;
+  color: white;
+  border: none;
+  padding: 8px 16px; /* Согласовал padding */
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+  white-space: nowrap; /* Предотвращаем перенос текста на кнопках */
+}
+
+.btn:disabled {
+  background-color: #f0c3bd;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.btn:hover:not(:disabled) {
+  background-color: #d46b5b;
+  transform: translateY(-1px);
+}
+.btn:active:not(:disabled) {
+    transform: translateY(0px);
+}
+
+.clear-btn {
+    background-color: #f8f9fa; /* Светлый фон */
+    color: #6c757d; /* Серый текст */
+    border: 1px solid #dee2e6; /* Светлая рамка */
+    font-size: 0.85rem; /* Меньший шрифт */
+    padding: 7px 12px; /* Меньшие отступы */
+}
+.clear-btn:hover:not(:disabled) {
+    background-color: #e9ecef;
+    color: #495057;
+    border-color: #ced4da;
+    transform: translateY(-1px);
+}
+.clear-btn:active:not(:disabled) {
+    transform: translateY(0px);
+}
+
+
+.results-info {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 15px;
+    text-align: right; /* Выравниваем по правому краю */
 }
 
 .no-results {
     text-align: center;
-    padding: 2rem;
+    padding: 3rem 1rem; /* Увеличил отступы */
     color: #888;
     font-style: italic;
+    border: 1px dashed #eee; /* Легкая рамка для пустого состояния */
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.items-container {
+    /* Контейнер для элементов списка, если нужны будут доп. стили */
+    margin-top: 10px; /* Небольшой отступ сверху */
 }
 
 .pagination {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 16px; /* Increased gap */
-  margin-top: 30px; /* Increased spacing */
-  padding-top: 20px; /* Add padding above pagination */
-  border-top: 1px solid #f0c3bd; /* Separator line */
+  gap: 16px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee; /* Сделал разделитель светлее */
 }
 
 .page-info {
   font-weight: 500;
   font-size: 1rem;
-  color: #555; /* Darker grey */
-}
-
-.btn {
-  background-color: #e18877; /* Primary button color */
-  color: white;
-  border: none;
-  padding: 8px 18px; /* Slightly larger button */
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.95rem; /* Slightly larger font */
-  font-weight: 500;
-  transition: background-color 0.2s ease-in-out, transform 0.1s ease; /* Added transform transition */
-}
-
-.btn:disabled {
-  background-color: #f0c3bd; /* Lighter disabled color */
-  cursor: not-allowed;
-  opacity: 0.7; /* Make it slightly transparent */
-}
-
-.btn:hover:not(:disabled) {
-  background-color: #d46b5b; /* Darker hover color */
-  transform: translateY(-1px); /* Slight lift effect */
-}
-.btn:active:not(:disabled) {
-    transform: translateY(0px); /* Press down effect */
+  color: #555;
 }
 </style>

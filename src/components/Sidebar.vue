@@ -42,7 +42,7 @@ import { ref } from 'vue' // Импортируем ref
 import { removeToken } from '@/helpers/auth' // Убедитесь, что путь правильный
 
 // Создаем ref для хранения активного вида, устанавливаем начальное значение (например, 'transactions')
-const activeView = ref('transactions') // Можете выбрать другое начальное значение
+const activeView = ref('calendar') // Можете выбрать другое начальное значение
 
 function logout() {
   removeToken()
@@ -68,14 +68,17 @@ function selectView(view) {
 </script>
 
 <style scoped>
-.sidebar {
-    /* Добавьте общие стили для сайдбара, если нужно */
-    /* Например: */
-    padding: 20px;
-    background-color: #f8f9fa; /* Пример фона */
-    height: 100vh; /* Пример высоты */
-    width: 250px; /* Пример ширины */
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* Пример тени */
+/* В <style scoped> компонента Sidebar.vue */
+.sidebar { /* Замените .sidebar на реальный класс/селектор корневого элемента */
+  height: 100%; /* Занимаем всю доступную высоту */
+  box-sizing: border-box;
+
+  /* Ваши стили для фона, скругления, паддинга и т.д. */
+  background-color: #ffffff; /* Пример */
+  border-radius: 12px;     /* Пример */
+  padding: 1.5rem 1rem;    /* Пример */
+  width: 250px;            /* Пример фиксированной ширины */
+  flex-shrink: 0;          /* Запрещаем сжиматься */
 }
 
 .logo {
