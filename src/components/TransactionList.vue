@@ -3,26 +3,26 @@
     <div class="filters">
       <input
         v-model="searchQuery"
-        placeholder="Поиск (описание, коммент, контрагент)"
+        placeholder="Пошук (опис, коммент, контрагент)"
         class="input search-input"
       />
       <input type="date" v-model="startDate" class="input" />
       <input type="date" v-model="endDate" class="input" />
       <select v-model="sortOrder" class="input">
-        <option value="desc">Сначала больше</option>
-        <option value="asc">Сначала меньше</option>
+        <option value="desc">Спочатку більше</option>
+        <option value="asc">Спочатку меньше</option>
       </select>
-      <button @click="clearFilters" class="btn clear-btn" title="Сбросить все фильтры">
-        ✕ Сбросить
+      <button @click="clearFilters" class="btn clear-btn" title="Скинути всі фільтри">
+        ✕ Скинути
       </button>
     </div>
 
     <div class="results-info" v-if="!isLoading && (debouncedSearchQuery || startDate || endDate)">
-         Найдено транзакций: {{ filteredTransactions.length }}
+         Знайдено транзакцій: {{ filteredTransactions.length }}
      </div>
 
      <div v-if="!isLoading && !error && paginatedTransactions.length === 0" class="no-results">
-       Нет транзакций, соответствующих вашим фильтрам.
+       Не знайдено транзакцій, згідно з вашими фільтрами.
     </div>
 
      <div v-if="!isLoading && !error && paginatedTransactions.length > 0" class="items-container">
@@ -38,9 +38,9 @@
       <button @click="prevPage" :disabled="currentPage === 1" class="btn">
         Назад
       </button>
-      <span class="page-info">Страница {{ currentPage }} из {{ totalPages }}</span>
+      <span class="page-info">Сторінка {{ currentPage }} из {{ totalPages }}</span>
       <button @click="nextPage" :disabled="currentPage === totalPages" class="btn">
-        Вперед
+        Наступна
       </button>
     </div>
   </div>
