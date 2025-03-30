@@ -8,7 +8,7 @@ const routes = [
   { 
     path: '/', 
     component: Dashboard, 
-    meta: { requiresAuth: true } 
+    meta: { requiresAuth: false } 
   }
 ]
 
@@ -17,13 +17,13 @@ const router = createRouter({
   routes
 })
 
-// router.beforeEach((to, from, next) => {
-//   const token = getToken()
-//   if (to.meta.requiresAuth && !token) {
-//     next('/auth')
-//   } else {
-//     next()
-//   }
-// })
+router.beforeEach((to, from, next) => {
+  const token = getToken()
+  if (to.meta.requiresAuth && !token) {
+    next('/auth')
+  } else {
+    next()
+  }
+})
 
 export default router

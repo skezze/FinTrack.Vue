@@ -10,11 +10,6 @@
         {{ isLogin ? 'Login' : 'Register' }}
       </button>
 
-      <button class="google-button" @click="loginWithGoogle">
-        Login via Google
-        <img src="https://img.icons8.com/color/512/google-logo.png" alt="G" class="google-icon" />
-      </button>
-
       <p class="switch-mode">
         {{ isLogin ? "Don't have an account?" : "Already have an account?" }}
         <a href="#" @click.prevent="toggleMode">{{ isLogin ? 'Register' : 'Login' }}</a>
@@ -114,18 +109,6 @@ button {
 
 button:hover {
   background-color: #eee;
-}
-
-.google-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.google-icon {
-  height: 24px;
 }
 
 .switch-mode {

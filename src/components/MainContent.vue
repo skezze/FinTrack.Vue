@@ -1,49 +1,56 @@
 <template>
-    <div class="content">
-      <router-view />
-      <div class="app">
-        <h1>Мои транзакции</h1>
-        <TransactionList :transactions="transactions" />
-      </div>
+  <div class="main-content">
+    <div class="component">
+      <component :is="currentComponent" />
     </div>
-  </template>
+  </div>
+</template>
 
 <script setup>
+import { onMounted, onBeforeUnmount, shallowRef } from 'vue'
+import TaxCalendar from './TaxCalendar.vue'
 import TransactionList from './TransactionList.vue'
+import AccountList from './AccountList.vue'
 
-const transactions = [
-  {
-    id: 'ZuHWzqkKGVo=',
-    time: 1554466347,
-    description: 'Покупка щастя',
-    mcc: 7997,
-    originalMcc: 7997,
-    hold: null,
-    amount: -95000,
-    operationAmount: -95000,
-    currencyCode: 980,
-    commissionRate: null,
-    cashbackAmount: 19000,
-    balance: 10050000,
-    comment: 'За каву',
-    receiptId: 'XXXX-XXXX-XXXX-XXXX',
-    invoiceId: '2103.в.27',
-    counterEdrpou: '3096889974',
-    counterIban: 'UA898999980000355639201001404',
-    counterName: 'ТОВ «ВОРОНА»'
+let currentComponent = shallowRef(TaxCalendar)
+
+function updateView(event) {
+  console.log(event)
+  switch (event.detail) {
+    case 'calendar':
+      currentComponent.value = TaxCalendar
+      break
+    case 'transactions':
+      currentComponent.value = TransactionList
+      break
+     case 'profile':
+      currentComponent.value = AccountList
+      break
+    default:
+      currentComponent.value = null
   }
-]
+  console.log(currentComponent.value)
+}
+
+onMounted(() => {
+  window.addEventListener('viewChange', updateView)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('viewChange', updateView)
+})
 </script>
-  
-  <style>
-  .container {
+
+<style scoped>
+.main-content {
+  padding: 20px;
     max-width: 800px;
     margin: 2rem auto;
-  }
-  .app {
+}
+.component {
     max-width: 700px;
     margin: 40px auto;
     padding: 0 20px;
     font-family: sans-serif;
-  }
-  </style>
+}
+</style>
