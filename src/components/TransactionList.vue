@@ -48,11 +48,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-// Убедитесь, что TransactionItem.vue находится в той же папке
 import TransactionItem from './TransactionItem.vue'
 
-// --- Статические данные для предпросмотра ---
-// В реальном приложении замените на загрузку данных
 const sampleTransactions = ref([
   { id: 1, time: Math.floor(new Date('2024-03-25T10:00:00Z').getTime() / 1000), description: 'Супермаркет "Сільпо"', comment: 'Молоко, хліб, овочі', amount: -15050, cashbackAmount: 150, counterName: 'Сільпо #123', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXX' },
   { id: 2, time: Math.floor(new Date('2024-03-26T15:30:00Z').getTime() / 1000), description: 'Зарплата', comment: 'За березень', amount: 5000000, cashbackAmount: null, counterName: 'ТОВ "Рога та Копита"', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXY' },
@@ -65,21 +62,17 @@ const sampleTransactions = ref([
   { id: 9, time: Math.floor(new Date('2024-03-30T12:00:00Z').getTime() / 1000), description: 'Переказ Олені П.', comment: 'Повернення боргу', amount: -100000, cashbackAmount: null, counterName: 'Олена Петренко', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXD' },
   { id: 10, time: Math.floor(new Date('2024-03-31T09:00:00Z').getTime() / 1000), description: 'Сніданок у кафе "Львівські Круасани"', comment: '', amount: -21000, cashbackAmount: 210, counterName: 'Львівські Круасани', counterIban: 'UAXXXXXXXXXXXXXXXXXXXXXXXXE' },
 ]);
-// --- Конец статических данных ---
 
-// Состояния для реальной загрузки (пример)
-const isLoading = ref(false); // Установите в true при начале загрузки
-const error = ref(null);     // Установите сообщение об ошибке при неудаче
+const isLoading = ref(false);
+const error = ref(null);
 
-// Фильтры и пагинация
 const searchQuery = ref('');
 const startDate = ref('');
 const endDate = ref('');
-const sortOrder = ref('desc'); // Сортировка по умолчанию
+const sortOrder = ref('desc');
 const currentPage = ref(1);
-const itemsPerPage = 5; // Можно сделать настраиваемым
+const itemsPerPage = 5;
 
-// Debounce для поиска
 const debouncedSearchQuery = ref('');
 let debounceTimer = null;
 
@@ -87,26 +80,21 @@ watch(searchQuery, (newValue) => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
         debouncedSearchQuery.value = newValue;
-        currentPage.value = 1; // Сброс на первую страницу при изменении поискового запроса
-    }, 350); // Задержка в 350 мс перед применением поиска
+        currentPage.value = 1;
+    }, 350);
 });
 
-// Функция сброса фильтров
 function clearFilters() {
   searchQuery.value = '';
-  // debouncedSearchQuery.value = ''; // Обновится через watch searchQuery
   startDate.value = '';
   endDate.value = '';
   sortOrder.value = 'desc';
   currentPage.value = 1;
 }
 
-// Отфильтрованные транзакции (с использованием debouncedSearchQuery)
 const filteredTransactions = computed(() => {
-  // В реальном приложении здесь будет ref с загруженными данными
   let transactionsToFilter = [...sampleTransactions.value];
 
-  // Применяем поиск (после debounce)
   const lowerQuery = debouncedSearchQuery.value.toLowerCase().trim();
   if (lowerQuery) {
     transactionsToFilter = transactionsToFilter.filter(tx =>
@@ -116,23 +104,21 @@ const filteredTransactions = computed(() => {
     );
   }
 
-  // Применяем фильтр по датам
   if (startDate.value) {
     try {
         const startDt = new Date(startDate.value);
         startDt.setHours(0, 0, 0, 0);
         transactionsToFilter = transactionsToFilter.filter(tx => new Date(tx.time * 1000) >= startDt);
-    } catch (e) { console.error("Invalid start date", e); } // Обработка некорректной даты
+    } catch (e) { console.error("Invalid start date", e); }
   }
   if (endDate.value) {
      try {
         const endDt = new Date(endDate.value);
         endDt.setHours(23, 59, 59, 999);
         transactionsToFilter = transactionsToFilter.filter(tx => new Date(tx.time * 1000) <= endDt);
-     } catch (e) { console.error("Invalid end date", e); } // Обработка некорректной даты
+     } catch (e) { console.error("Invalid end date", e); }
   }
 
-  // Применяем сортировку
   transactionsToFilter.sort((a, b) => {
     return sortOrder.value === 'desc'
       ? b.amount - a.amount
@@ -142,15 +128,12 @@ const filteredTransactions = computed(() => {
   return transactionsToFilter;
 });
 
-// Общее количество страниц
 const totalPages = computed(() => {
-    if (filteredTransactions.value.length === 0) return 1; // Показываем "Страница 1 из 1", даже если пусто
+    if (filteredTransactions.value.length === 0) return 1;
     return Math.ceil(filteredTransactions.value.length / itemsPerPage);
 });
 
-// Транзакции для текущей страницы
 const paginatedTransactions = computed(() => {
-  // Сброс на последнюю доступную страницу, если текущая стала невалидной
   if (currentPage.value > totalPages.value && totalPages.value > 0) {
      currentPage.value = totalPages.value;
   }
@@ -159,7 +142,6 @@ const paginatedTransactions = computed(() => {
   return filteredTransactions.value.slice(start, start + itemsPerPage);
 })
 
-// Функции пагинации
 function nextPage() {
   if (currentPage.value < totalPages.value) currentPage.value++;
 }
@@ -167,43 +149,37 @@ function prevPage() {
   if (currentPage.value > 1) currentPage.value--;
 }
 
-// Если бы данные грузились, здесь был бы onMounted с вызовом fetch
-// onMounted(() => { /* fetch data */ })
-
 </script>
 
 <style scoped>
 .transaction-list {
-  /* Убраны background-color, max-width и margin: auto */
-  /* Добавлены отступы только сверху/снизу/внутри */
-  padding: 1.5rem 1rem; /* Внутренние отступы, по бокам меньше */
-  margin-bottom: 2rem; /* Отступ снизу компонента */
-  /* width: 100%; */ /* Это обычно не нужно, блочные элементы и так занимают всю ширину */
-  box-sizing: border-box; /* Чтобы padding не увеличивал общую ширину */
+  padding: 1.5rem 1rem;
+  margin-bottom: 2rem;
+  box-sizing: border-box;
   font-family: sans-serif;
 }
 
 .filters {
   display: flex;
-  flex-wrap: wrap; /* Разрешаем перенос на новую строку */
-  gap: 10px; /* Промежутки между элементами */
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 25px;
-  justify-content: flex-start; /* Выравнивание по началу строки */
+  justify-content: flex-start;
   padding-bottom: 20px;
-  border-bottom: 1px solid #eee; /* Сделал разделитель светлее */
+  border-bottom: 1px solid #eee;
 }
 
 .input {
-  padding: 8px 12px; /* Уменьшил padding для компактности */
-  border: 1px solid #ccc; /* Стандартная рамка */
+  padding: 8px 12px;
+  border: 1px solid #ccc;
   border-radius: 6px;
   font-size: 0.95rem;
   background-color: #fff;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .input.search-input {
-    flex-grow: 1; /* Позволяем полю поиска занимать доступное пространство */
-    min-width: 200px; /* Минимальная ширина поиска */
+    flex-grow: 1;
+    min-width: 200px;
 }
 .input[type="date"] {
     min-width: 140px;
@@ -216,20 +192,20 @@ select.input {
 .input:focus {
   outline: none;
   border-color: #e18877;
-  box-shadow: 0 0 0 2px rgba(225, 136, 119, 0.2); /* Тень при фокусе */
+  box-shadow: 0 0 0 2px rgba(225, 136, 119, 0.2);
 }
 
 .btn {
   background-color: #e18877;
   color: white;
   border: none;
-  padding: 8px 16px; /* Согласовал padding */
+  padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
   transition: background-color 0.2s ease-in-out, transform 0.1s ease;
-  white-space: nowrap; /* Предотвращаем перенос текста на кнопках */
+  white-space: nowrap;
 }
 
 .btn:disabled {
@@ -247,11 +223,11 @@ select.input {
 }
 
 .clear-btn {
-    background-color: #f8f9fa; /* Светлый фон */
-    color: #6c757d; /* Серый текст */
-    border: 1px solid #dee2e6; /* Светлая рамка */
-    font-size: 0.85rem; /* Меньший шрифт */
-    padding: 7px 12px; /* Меньшие отступы */
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+    font-size: 0.85rem;
+    padding: 7px 12px;
 }
 .clear-btn:hover:not(:disabled) {
     background-color: #e9ecef;
@@ -268,22 +244,21 @@ select.input {
     font-size: 0.9rem;
     color: #666;
     margin-bottom: 15px;
-    text-align: right; /* Выравниваем по правому краю */
+    text-align: right;
 }
 
 .no-results {
     text-align: center;
-    padding: 3rem 1rem; /* Увеличил отступы */
+    padding: 3rem 1rem;
     color: #888;
     font-style: italic;
-    border: 1px dashed #eee; /* Легкая рамка для пустого состояния */
+    border: 1px dashed #eee;
     border-radius: 8px;
     margin-top: 10px;
 }
 
 .items-container {
-    /* Контейнер для элементов списка, если нужны будут доп. стили */
-    margin-top: 10px; /* Небольшой отступ сверху */
+    margin-top: 10px;
 }
 
 .pagination {
@@ -293,7 +268,7 @@ select.input {
   gap: 16px;
   margin-top: 30px;
   padding-top: 20px;
-  border-top: 1px solid #eee; /* Сделал разделитель светлее */
+  border-top: 1px solid #eee;
 }
 
 .page-info {

@@ -1,207 +1,202 @@
 <template>
-  <div class="calendar-container">
-    <div class="settings-panel">
-      <select v-model="selectedYear">
-        <option v-for="year in years" :key="year">{{ year }}</option>
-      </select>
-      <select v-model="selectedType">
-        <option value="all">Тип</option>
-        <option value="paid">Виконані</option>
-        <option value="pending">Очікують</option>
+  <div class="fop-tax-calendar">
+    <div class="controls">
+      <label for="year-select">Рік:</label>
+      <select id="year-select" v-model="selectedYear" class="year-select">
+        <option v-for="year in availableYears" :key="year" :value="year">
+          {{ year }}
+        </option>
       </select>
     </div>
 
-    <div class="quarters">
-      <div v-for="quarter in quarters" :key="quarter.name" class="quarter">
-        <h3>{{ quarter.name }}</h3>
-        <div class="months">
+    <div class="calendar-grid">
+      <div v-for="q in 4" :key="`q-${q}`" class="quarter-column">
+        <h3 class="quarter-title">{{ getQuarterName(q) }}</h3>
+
+        <div class="months-container">
           <div
-            v-for="month in quarter.months"
-            :key="month.name"
-            class="month"
-            :class="{ current: isCurrentMonth(month.name) }"
-            @click="selectMonth(month)"
+            v-for="month in getMonthsForQuarter(q)"
+            :key="`m-${month}`"
+            :class="['month-block', { 'current-month': isCurrentMonth(selectedYear, month) }]"
           >
-            <div
-              v-for="event in month.events"
-              :key="event.type"
-              class="status"
-              :class="[event.color, { done: event.done }]"
-            >
-              <span>{{ event.label }}</span>
-              <span v-if="event.done">✔️</span>
+            <div class="month-name">{{ getMonthName(month) }}</div>
+            <div class="events-area">
+              <div
+                v-for="event in getEventsForMonth(q, month)"
+                :key="event.id"
+                :class="['event-item', `event-type-${event.type}`]"
+                :title="`${event.title} (${event.details.description.match(/за\s+.*?\s+квартал\s+\d{4}/)?.[0] || ''}) - ${event.details.deadline}`"
+                @click="showDetails(event)"
+              >
+                <span class="event-title">{{ event.title }}</span>
+              </div>
             </div>
-            <div class="month-name">{{ month.name }}</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-if="selectedMonth" class="details">
-      <h4>Деталі: {{ selectedMonth.name }}</h4>
-      <ul>
-        <li v-for="event in selectedMonth.events" :key="event.type">
-          <strong>{{ event.label }}</strong> — {{ event.description }} (до {{ event.dueDate }})
-        </li>
-      </ul>
+    <div class="legend">
+      <h4>Легенда:</h4>
+      <div class="legend-item"><span class="color-box event-type-declaration"></span> Декларація ЄП</div>
+      <div class="legend-item"><span class="color-box event-type-payment_ep"></span> Сплата ЄП</div>
+      <div class="legend-item"><span class="color-box event-type-payment_esv"></span> Сплата ЄСВ</div>
     </div>
+
+    <div v-if="selectedEventDetails" class="event-details-area">
+       <button @click="selectedEventDetails = null" class="close-details-btn" title="Закрити">×</button>
+       <h3>Деталі: {{ selectedEventDetails.title }} ({{ selectedEventDetails.details.description.match(/за\s+.*?\s+квартал\s+\d{4}/)?.[0] || '' }})</h3>
+      <p><strong>Що це:</strong> {{ selectedEventDetails.details.description }}</p>
+      <p><strong>Граничний термін:</strong> {{ selectedEventDetails.details.deadline }}</p>
+      <p v-if="selectedEventDetails.details.notes"><em>Примітка:</em> {{ selectedEventDetails.details.notes }}</p>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 
-const selectedYear = ref(2025);
-const selectedType = ref('all');
-const selectedMonth = ref(null);
+const today = new Date();
+const currentYear = today.getFullYear();
+const currentMonth = today.getMonth() + 1;
 
-const years = [2024, 2025, 2026];
-const months = [
-  'СІЧЕНЬ', 'ЛЮТИЙ', 'БЕРЕЗЕНЬ',
-  'КВІТЕНЬ', 'ТРАВЕНЬ', 'ЧЕРВЕНЬ',
-  'ЛИПЕНЬ', 'СЕРПЕНЬ', 'ВЕРЕСЕНЬ',
-  'ЖОВТЕНЬ', 'ЛИСТОПАД', 'ГРУДЕНЬ'
-];
+const selectedYear = ref(currentYear);
+const selectedEventDetails = ref(null);
 
-const currentMonthIndex = new Date().getMonth();
-function isCurrentMonth(monthName) {
-  return months[currentMonthIndex] === monthName;
+function generateFopEvents(year) {
+  const events = [];
+  const quarters = [1, 2, 3, 4];
+
+  const esvMonths = [4, 7, 10, 1];
+  const declMonths = [5, 8, 11, 2];
+  const epMonths = [5, 8, 11, 2];
+
+  const esvDeadlineDay = 19;
+  const declDeadlineDay = 10;
+  const epDeadlineDay = 19;
+
+  quarters.forEach(q => {
+    const activityYear = year;
+    const esvDeadlineYear = (q === 4 && esvMonths[q-1] === 1) ? year + 1 : year;
+    const declDeadlineYear = (q === 4 && declMonths[q-1] === 2) ? year + 1 : year;
+    const epDeadlineYear = (q === 4 && epMonths[q-1] === 2) ? year + 1 : year;
+
+    events.push({
+      id: `y${activityYear}_q${q}_esv`, type: 'payment_esv', title: 'Сплата ЄСВ',
+      quarter: q,
+      month: esvMonths[q-1],
+      year: esvDeadlineYear,
+      status: 'info',
+      details: {
+          deadline: `До ${esvDeadlineDay} ${getMonthNameGenitive(esvMonths[q-1])} ${esvDeadlineYear}р.`,
+          description: `Єдиний Соціальний Внесок за ${getQuarterNameRoman(q)} квартал ${activityYear}р.`,
+          notes: 'Сплачується щоквартально, не пізніше 19 числа місяця, наступного за кварталом.'
+      }
+    });
+
+    events.push({
+      id: `y${activityYear}_q${q}_declaration`, type: 'declaration', title: 'Декларація ЄП',
+      quarter: q, month: declMonths[q-1], year: declDeadlineYear, status: 'info',
+      details: {
+          deadline: `До ${declDeadlineDay} ${getMonthNameGenitive(declMonths[q-1])} ${declDeadlineYear}р.`,
+          description: `Податкова декларація платника єдиного податку за ${getQuarterNameRoman(q)} квартал ${activityYear}р.`,
+          notes: 'Подається протягом 40 календарних днів після закінчення кварталу.'
+      }
+    });
+
+    events.push({
+      id: `y${activityYear}_q${q}_ep`, type: 'payment_ep', title: 'Сплата ЄП',
+      quarter: q, month: epMonths[q-1], year: epDeadlineYear, status: 'info',
+      details: {
+          deadline: `До ${epDeadlineDay} ${getMonthNameGenitive(epMonths[q-1])} ${epDeadlineYear}р.`,
+          description: `Єдиний Податок за ${getQuarterNameRoman(q)} квартал ${activityYear}р.`,
+          notes: 'Сплачується протягом 10 календарних днів після граничного терміну подання квартальної декларації.'
+      }
+    });
+  });
+
+  const prevYear = year - 1;
+  const prevQ = 4;
+  const prevEsvMonth = esvMonths[prevQ-1];
+  const prevDeclMonth = declMonths[prevQ-1];
+  const prevEpMonth = epMonths[prevQ-1];
+
+  events.push({
+      id: `y${prevYear}_q${prevQ}_esv`, type: 'payment_esv', title: 'Сплата ЄСВ', quarter: prevQ, month: prevEsvMonth, year: year, status: 'info', // Год дедлайна = текущий (year)
+      details: { deadline: `До ${esvDeadlineDay} ${getMonthNameGenitive(prevEsvMonth)} ${year}р.`, description: `Єдиний Соціальний Внесок за ${getQuarterNameRoman(prevQ)} квартал ${prevYear}р.`, notes: 'Сплачується щоквартально.' }
+  });
+  events.push({
+      id: `y${prevYear}_q${prevQ}_declaration`, type: 'declaration', title: 'Декларація ЄП', quarter: prevQ, month: prevDeclMonth, year: year, status: 'info',
+      details: { deadline: `До ${declDeadlineDay} ${getMonthNameGenitive(prevDeclMonth)} ${year}р.`, description: `Податкова декларація платника єдиного податку за ${getQuarterNameRoman(prevQ)} квартал ${prevYear}р.`, notes: 'Подається протягом 40 к.д. після кварталу.' }
+  });
+  events.push({
+      id: `y${prevYear}_q${prevQ}_ep`, type: 'payment_ep', title: 'Сплата ЄП', quarter: prevQ, month: prevEpMonth, year: year, status: 'info',
+      details: { deadline: `До ${epDeadlineDay} ${getMonthNameGenitive(prevEpMonth)} ${year}р.`, description: `Єдиний Податок за ${getQuarterNameRoman(prevQ)} квартал ${prevYear}р.`, notes: 'Сплачується протягом 10 к.д. після терміну подання декларації.' }
+  });
+
+
+  return events;
 }
 
-function selectMonth(month) {
-  selectedMonth.value = month;
+const fopEvents = computed(() => generateFopEvents(selectedYear.value));
+
+const availableYears = computed(() => {
+  const baseYear = new Date().getFullYear();
+  return [baseYear - 1, baseYear, baseYear + 1];
+});
+
+function getQuarterName(q) { const names = ['І квартал', 'ІІ квартал', 'III квартал', 'IV квартал']; return names[q - 1]; }
+function getQuarterNameRoman(q) { const names = ['I', 'II', 'III', 'IV']; return names[q - 1]; }
+function getMonthsForQuarter(q) { const months = [ [1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12] ]; return months[q - 1]; }
+function getMonthName(m) { const names = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень']; return names[m - 1]; }
+function getMonthNameGenitive(m) { const names = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня']; return names[m - 1]; }
+
+function getEventsForMonth(quarter, month) {
+    return fopEvents.value.filter(event => event.month === month && event.year === selectedYear.value);
 }
 
-const quarters = [
-  {
-    name: 'I квартал',
-    months: [
-      {
-        name: 'СІЧЕНЬ',
-        events: [
-          { type: 'ЄП', label: 'Сплата ЄП', color: 'blue', done: true, description: 'Єдиний податок за 4 квартал 2024', dueDate: '20 січня 2025' },
-          { type: 'ВЗ', label: 'Сплата ВЗ', color: 'olive', done: true, description: 'Військовий збір за 4 квартал 2024', dueDate: '20 січня 2025' },
-          { type: 'ЄСВ', label: 'Сплата ЄСВ', color: 'green', done: true, description: 'ЄСВ за 4 квартал 2024', dueDate: '20 січня 2025' },
-        ]
-      },
-      {
-        name: 'ЛЮТИЙ',
-        events: []
-      },
-      {
-        name: 'БЕРЕЗЕНЬ',
-        events: []
-      }
-    ]
-  },
-  {
-    name: 'II квартал',
-    months: [
-      {
-        name: 'КВІТЕНЬ',
-        events: [
-          { type: 'DECLARATION', label: 'Податкова декларація', color: 'sky', done: false, description: 'Подача декларації за 1 квартал', dueDate: '10 квітня 2025' },
-          { type: 'ЄП', label: 'Сплата ЄП', color: 'blue', done: false, description: 'Єдиний податок за 1 квартал', dueDate: '20 квітня 2025' },
-          { type: 'ВЗ', label: 'Сплата ВЗ', color: 'olive', done: false, description: 'Військовий збір за 1 квартал', dueDate: '20 квітня 2025' },
-          { type: 'ЄСВ', label: 'Сплата ЄСВ', color: 'green', done: false, description: 'ЄСВ за 1 квартал', dueDate: '20 квітня 2025' },
-        ]
-      },
-      {
-        name: 'ТРАВЕНЬ', events: []
-      },
-      {
-        name: 'ЧЕРВЕНЬ', events: []
-      }
-    ]
-  },
-  {
-    name: 'III квартал',
-    months: [
-      { name: 'ЛИПЕНЬ', events: [] },
-      { name: 'СЕРПЕНЬ', events: [] },
-      { name: 'ВЕРЕСЕНЬ', events: [] }
-    ]
-  },
-  {
-    name: 'IV квартал',
-    months: [
-      { name: 'ЖОВТЕНЬ', events: [] },
-      { name: 'ЛИСТОПАД', events: [] },
-      { name: 'ГРУДЕНЬ', events: [] }
-    ]
-  }
-];
+function showDetails(event) { selectedEventDetails.value = event; }
+function isCurrentMonth(year, month) { return year === currentYear && month === currentMonth; }
+
+watch(selectedYear, () => { selectedEventDetails.value = null; });
+
 </script>
 
 <style scoped>
-.calendar-container {
-  padding: 1rem;
-  border-radius: 12px;
-}
 
-.settings-panel {
-  display: flex;
-  justify-content: space-between;
-  padding: 1rem;
-  background: #fbb;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-}
+.fop-tax-calendar { font-family: sans-serif; background-color: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); position: relative; }
+.controls { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
+.controls label { font-weight: 500; }
+.year-select { padding: 0.5rem 0.8rem; border: 1px solid #ccc; border-radius: 4px; background-color: #fff; cursor: pointer; }
+.calendar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
 
-.quarters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
-}
+.quarter-column { border: 1px solid #e0e0e0; border-radius: 6px; background-color: #fdfdfd; display: flex; flex-direction: column; }
+.quarter-title { text-align: center; font-size: 0.9rem; font-weight: 600; padding: 0.6rem 0.5rem; margin: 0; background-color: #f5f5f5; border-bottom: 1px solid #e0e0e0; border-radius: 6px 6px 0 0; flex-shrink: 0; }
 
-.quarter {
-  flex: 1 1 22%;
-}
+.months-container { padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; flex-grow: 1; }
+.month-block { padding: 0.5rem; border: 1px solid #eee; background-color: #fff; border-radius: 4px; min-height: 70px; display: flex; flex-direction: column; transition: background-color 0.2s ease; }
+.month-block.current-month { background-color: #fff9e6; border-color: #ffecb3; }
+.month-name { font-size: 0.75rem; font-weight: bold; color: #555; margin-bottom: 0.4rem; text-align: center; flex-shrink: 0; }
+.events-area { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
 
-.months {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
+.event-item { font-size: 0.7rem; padding: 4px 6px; border-radius: 3px; color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; transition: filter 0.2s ease, transform 0.1s ease; position: relative; }
+.event-item:hover { filter: brightness(1.1); transform: translateX(2px); }
 
-.month {
-  padding: 0.5rem;
-  background: #f3f3f3;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: 0.2s;
-}
+.event-type-declaration { background-color: #3498db; }
+.event-type-payment_ep { background-color: #e67e22; }
+.event-type-payment_esv { background-color: #2ecc71; }
 
-.month.current {
-  border: 2px solid #f97316;
-  background-color: #fff7ed;
-}
+.legend { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee; font-size: 0.85rem; color: #333; }
+.legend h4 { margin-top: 0; margin-bottom: 0.5rem; font-size: 0.9rem; }
+.legend-item { display: flex; align-items: center; margin-bottom: 4px; }
+.color-box { display: inline-block; width: 12px; height: 12px; margin-right: 8px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.1); }
 
-.status {
-  font-size: 0.85rem;
-  display: flex;
-  justify-content: space-between;
-}
-
-.status.blue { background: #bae6fd; padding: 0.25rem; border-radius: 4px; }
-.status.sky { background: #7dd3fc; padding: 0.25rem; border-radius: 4px; }
-.status.olive { background: #a3a380; padding: 0.25rem; border-radius: 4px; }
-.status.green { background: #6ee7b7; padding: 0.25rem; border-radius: 4px; }
-
-.status.done {
-  text-decoration: line-through;
-  opacity: 0.6;
-}
-
-.month-name {
-  margin-top: 0.25rem;
-  font-weight: bold;
-}
-
-.details {
-  margin-top: 2rem;
-  background: #f0f0f0;
-  padding: 1rem;
-  border-radius: 8px;
-}
+.event-details-area { margin-top: 1.5rem; padding: 1.5rem; border: 1px solid #d1e7dd; background-color: #f8fcfb; border-radius: 8px; position: relative; }
+.event-details-area h3 { margin-top: 0; margin-bottom: 1rem; font-size: 1.2rem; color: #0a3622; }
+.event-details-area p { margin-bottom: 0.6rem; line-height: 1.5; color: #333; }
+.event-details-area p strong { color: #198754; }
+.event-details-area p em { color: #555; font-size: 0.9em; }
+.close-details-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 1.8rem; line-height: 1; color: #aaa; cursor: pointer; padding: 0; }
+.close-details-btn:hover { color: #777; }
 </style>

@@ -22,13 +22,11 @@
 <script setup>
 import { computed, defineProps, defineEmits } from 'vue'
 
-// Определяем пропсы с валидатором
 const props = defineProps({
   transaction: {
       type: Object,
       required: true,
       validator: (value) => {
-          // Базовая проверка наличия ключевых полей
           const hasRequired = typeof value.id !== 'undefined' &&
                  typeof value.time === 'number' &&
                  typeof value.description === 'string' &&
@@ -41,71 +39,57 @@ const props = defineProps({
   }
 })
 
-// Определяем событие, которое компонент может генерировать
 const emit = defineEmits(['view-details']);
 
-// Функция для обработки клика по карточке
 function onItemClick() {
     console.log("Item clicked, emitting view-details with ID:", props.transaction.id);
-    emit('view-details', props.transaction.id); // Отправляем событие с ID транзакции
+    emit('view-details', props.transaction.id);
 }
 
-
-// Форматирование даты и времени
 const formattedDateTime = computed(() => {
   try {
       const date = new Date(props.transaction.time * 1000);
-      if (isNaN(date.getTime())) { // Проверка на валидность даты
+      if (isNaN(date.getTime())) {
            throw new Error("Invalid date object");
       }
-      // 'uk-UA' - локаль для Украины
       return date.toLocaleString('uk-UA', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-        // second: '2-digit' // Можно добавить секунды, если нужно
       });
   } catch (e) {
       console.error("Error formatting date for transaction:", props.transaction.id, e);
-      return "Неверная дата"; // Возвращаем запасное значение
+      return "Неверная дата";
   }
 });
 
-// Форматирование суммы (и кешбэка) с указанием валюты
 function formatAmountWithCurrency(amountInKopiykas) {
-  // Проверяем, что это число, иначе возвращаем пустую строку или 0
   if (typeof amountInKopiykas !== 'number' || isNaN(amountInKopiykas)) {
        console.warn("Invalid amount passed to formatAmountWithCurrency:", amountInKopiykas);
-       return '0,00 ₴'; // Или пустую строку ''
+       return '0,00 ₴';
   }
   const amount = amountInKopiykas / 100;
   try {
       return amount.toLocaleString('uk-UA', {
         style: 'currency',
-        currency: 'UAH', // Код валюты для гривны
-        // minimumFractionDigits: 2, // По умолчанию 2 для currency
-        // maximumFractionDigits: 2
+        currency: 'UAH',
       });
   } catch (e) {
       console.error("Error formatting currency:", e);
-      // Возвращаем базовое форматирование в случае ошибки
       return (amountInKopiykas / 100).toFixed(2) + ' ₴';
   }
 }
 
-// Форматирование мета-данных (контрагент + IBAN)
 const formattedMeta = computed(() => {
     const parts = [];
     if (props.transaction.counterName) {
         parts.push(props.transaction.counterName.trim());
     }
     if (props.transaction.counterIban) {
-         // Тут можно добавить маскирование IBAN при необходимости
         parts.push(props.transaction.counterIban.trim());
     }
-    // Соединяем только непустые части
     return parts.filter(part => part).join(' | ');
 });
 
@@ -114,77 +98,73 @@ const formattedMeta = computed(() => {
 <style scoped>
 .transaction-item {
   background-color: #fff;
-  border: 1px solid #e4e4e4; /* Сделал рамку чуть нейтральнее */
-  border-radius: 10px; /* Немного уменьшил радиус */
+  border: 1px solid #e4e4e4;
+  border-radius: 10px;
   padding: 14px 18px;
-  margin-bottom: 12px; /* Уменьшил нижний отступ */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); /* Слегка изменил тень */
-  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease; /* Добавил transition */
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
 
-/* Стиль для кликабельных элементов */
 .transaction-item.clickable {
   cursor: pointer;
 }
 
 .transaction-item.clickable:hover {
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07); /* Усиленная тень при наведении */
-  border-color: #dcdcdc; /* Слегка изменяем цвет рамки */
-  /* transform: translateY(-1px); */ /* Легкий сдвиг вверх */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07);
+  border-color: #dcdcdc;
 }
 
 .top-line {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start; /* Выравнивание по верху для длинных описаний */
+  align-items: flex-start;
   margin-bottom: 6px;
-  gap: 10px; /* Добавил промежуток между описанием и суммой */
+  gap: 10px;
 }
 
 .description {
   font-weight: 600;
   font-size: 1rem;
   color: #333;
-  word-break: break-word; /* Перенос длинных слов в описании */
+  word-break: break-word;
 }
 
 .amount {
-  font-weight: 600; /* Сделал чуть менее жирным */
+  font-weight: 600;
   font-size: 1rem;
-  white-space: nowrap; /* Предотвращаем перенос суммы */
+  white-space: nowrap;
   text-align: right;
 }
 
 .amount.negative {
-  color: #d9534f; /* Немного изменил красный */
+  color: #d9534f;
 }
 
 .amount.positive {
-  color: #5cb85c; /* Немного изменил зеленый */
+  color: #5cb85c;
 }
 
 .details {
-  font-size: 0.85rem; /* Немного уменьшил */
-  color: #555; /* Сделал чуть темнее */
-  margin-bottom: 8px; /* Увеличил отступ */
-  line-height: 1.4; /* Улучшил читаемость */
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
 .details > span:not(:first-child) {
-    margin-left: 3px; /* Небольшой отступ для разделителя */
+    margin-left: 3px;
 }
 
 .cashback {
-  color: #e18877; /* Можно использовать цвет позитивных транзакций */
-  /* color: #5cb85c; */
+  color: #e18877;
   font-weight: 500;
-  /* font-style: italic; */ /* Можно сделать курсивом */
 }
 
 .meta {
-  font-size: 0.78rem; /* Немного увеличил */
-  color: #888; /* Сделал чуть темнее */
-  word-break: break-all; /* Разрешаем перенос IBAN */
+  font-size: 0.78rem;
+  color: #888;
+  word-break: break-all;
   line-height: 1.3;
 }
 </style>

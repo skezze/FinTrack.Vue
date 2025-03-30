@@ -28,13 +28,11 @@
 </template>
 
 <script>
-// Импортируем defineComponent и функции Composition API
 import { defineComponent, computed } from 'vue';
 
 export default defineComponent({
-  name: 'AccountCard', // Имя компонента (хорошая практика)
+  name: 'AccountCard', 
 
-  // Определяем пропсы через опцию 'props'
   props: {
     account: {
       type: Object,
@@ -53,25 +51,19 @@ export default defineComponent({
     }
   },
 
-  // Определяем события через опцию 'emits'
   emits: ['view-details'],
 
-  // Функция setup получает props и context (включая emit)
   setup(props, { emit }) {
 
-    // --- Вспомогательные функции ---
     function getCurrencyString(code) {
       const map = { 980: 'UAH', 840: 'USD', 978: 'EUR' };
       return map[code] || '';
     }
 
-    // --- Computed свойства ---
-    // Используем props.account для доступа к данным внутри setup
     const safeMaskedPan = computed(() => {
       return props.account?.maskedPan?.[0] ?? '**** **** **** ****';
     });
 
-    // --- Методы (обычные функции внутри setup) ---
     function formatCurrency(value, currencyCode) {
       const amount = (value ?? 0) / 100;
       const currencyString = getCurrencyString(currencyCode);
@@ -94,24 +86,20 @@ export default defineComponent({
 
     function onItemClick() {
         console.log("Item clicked (setup function), emitting view-details with ID:", props.account.id);
-        // Используем emit из второго аргумента setup
         emit('view-details', props.account.id);
     }
 
-    // --- Возвращаем все, что должно быть доступно в шаблоне ---
     return {
-      safeMaskedPan,    // computed свойство
-      formatCurrency,   // метод
-      currencyCodeToName,// метод
-      onItemClick       // метод для @click
-      // props.account будет доступен в шаблоне автоматически через определение props
+      safeMaskedPan,
+      formatCurrency,
+      currencyCodeToName,
+      onItemClick
     };
   }
 });
 </script>
 
 <style scoped>
-/* Стили остаются точно такими же, как в предыдущей версии */
 .card {
   border: 1px solid #e0e0e0;
   padding: 1rem 1.2rem;

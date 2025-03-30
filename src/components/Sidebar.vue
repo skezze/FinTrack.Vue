@@ -6,126 +6,101 @@
         @click="selectView('calendar')"
         :class="{ active: activeView === 'calendar' }"
       >
-        Calendar
+        Календар
       </a>
       <a
         @click="selectView('transactions')"
         :class="{ active: activeView === 'transactions' }"
       >
-        Transactions
+        Транзакції
       </a>
       <a
         @click="selectView('profile')"
         :class="{ active: activeView === 'profile' }"
       >
-        Profile
+        Відкриті рахунки
       </a>
       <a
         @click="selectView('settings')"
         :class="{ active: activeView === 'settings' }"
       >
-        Settings
+        Налаштування
       </a>
       <a
-        @click="selectView('help')"
-        :class="{ active: activeView === 'help' }"
+        @click="selectView('documents')"
+        :class="{ active: activeView === 'documents' }"
       >
-        Help
+        Документи
       </a>
-      <a @click="logout">Logout</a>
     </nav>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue' // Импортируем ref
-import { removeToken } from '@/helpers/auth' // Убедитесь, что путь правильный
+import { ref } from 'vue'
 
-// Создаем ref для хранения активного вида, устанавливаем начальное значение (например, 'transactions')
-const activeView = ref('calendar') // Можете выбрать другое начальное значение
-
-function logout() {
-  removeToken()
-  window.location.href = '/auth'
-}
+const activeView = ref('calendar')
 
 function selectView(view) {
-  activeView.value = view // Обновляем активный вид
-  // Отправляем событие родителю (или другим компонентам) о смене вида
+  activeView.value = view
   const event = new CustomEvent('viewChange', { detail: view })
   window.dispatchEvent(event)
 }
-
-// Опционально: Если родительский компонент может изменять вид,
-// можно добавить слушатель событий, чтобы синхронизировать activeView
-// window.addEventListener('externalViewChange', (event) => {
-//   if (['calendar', 'transactions', 'profile', 'settings', 'help'].includes(event.detail)) {
-//      activeView.value = event.detail;
-//   }
-// });
-// Не забудьте удалить слушатель при размонтировании компонента (onUnmounted)
-
 </script>
 
 <style scoped>
-/* В <style scoped> компонента Sidebar.vue */
-.sidebar { /* Замените .sidebar на реальный класс/селектор корневого элемента */
-  height: 100%; /* Занимаем всю доступную высоту */
+.sidebar {
+  height: 100%;
   box-sizing: border-box;
 
-  /* Ваши стили для фона, скругления, паддинга и т.д. */
-  background-color: #ffffff; /* Пример */
-  border-radius: 12px;     /* Пример */
-  padding: 1.5rem 1rem;    /* Пример */
-  width: 250px;            /* Пример фиксированной ширины */
-  flex-shrink: 0;          /* Запрещаем сжиматься */
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem 1rem;
+  width: 250px;
+  flex-shrink: 0;
 }
 
 .logo {
   font-size: 30px;
   font-weight: bold;
-  margin-bottom: 30px; /* Увеличил отступ */
-  color: #bb3333; /* Основной цвет лого */
-  text-align: center; /* Центрируем лого */
+  margin-bottom: 30px;
+  color: #bb3333;
+  text-align: center;
 }
 
 .logo span {
-  color: #333; /* Цвет второй части лого */
+  color: #333;
 }
 
 nav {
     display: flex;
-    flex-direction: column; /* Располагаем ссылки вертикально */
+    flex-direction: column;
 }
 
 nav a {
-  font-size: 20px; /* Немного уменьшил для лучшего вида */
-  margin: 8px 0; /* Вертикальные отступы */
-  padding: 10px 15px; /* Внутренние отступы для кликабельной области */
+  font-size: 20px;
+  margin: 8px 0;
+  padding: 10px 15px;
   display: block;
   cursor: pointer;
-  color: #555; /* Цвет неактивных ссылок */
-  text-decoration: none; /* Убираем подчеркивание */
-  border-radius: 6px; /* Слегка скругляем углы */
-  transition: background-color 0.2s ease, color 0.2s ease; /* Плавный переход */
+  color: #555;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 nav a:hover {
-  background-color: #e9ecef; /* Легкий фон при наведении */
+  background-color: #e9ecef;
   color: #333;
 }
 
-/* Стиль для активной ссылки */
 nav a.active {
-  background-color: #e18877; /* Цвет фона активной ссылки (взят из предыдущих примеров) */
-  color: #ffffff; /* Белый цвет текста активной ссылки */
-  font-weight: 600; /* Делаем шрифт активной ссылки жирнее */
+  background-color: #e18877;
+  color: #ffffff;
+  font-weight: 600;
 }
 
-/* Стиль для кнопки Logout, чтобы она выглядела похоже, но не имела active состояния */
-nav a:last-of-type { /* Применяем к последней ссылке (Logout) */
-    margin-top: 20px; /* Добавляем отступ сверху */
-    /* Можно добавить отдельные стили для logout, если нужно */
-    /* Например, color: #dc3545; */
+nav a:last-of-type {
+    margin-top: 20px;
 }
 </style>

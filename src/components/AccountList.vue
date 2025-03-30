@@ -59,11 +59,10 @@ h2 { margin-bottom: 1.5rem; color: #333; font-weight: 600; }
 .error-message { color: #d9534f; background-color: #f2dede; border: 1px solid #ebccd1; padding: 0.8rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
 .no-accounts { color: #666; background-color: #f9f9f9; border: 1px dashed #ddd; padding: 1.5rem 1rem; border-radius: 8px; text-align: center; margin-top: 1rem; }
 
-/* Временно в AccountList.vue */
 .account-cards-grid {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
-  gap: 1.5rem !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
 }
 
 .account-cards-grid :deep(.card) {
