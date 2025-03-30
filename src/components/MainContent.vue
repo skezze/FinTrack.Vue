@@ -14,6 +14,7 @@ import TaxCalendar from './TaxCalendar.vue'
 import TransactionList from './TransactionList.vue'
 import AccountList from './AccountList.vue'
 import ReportList from './ReportList.vue'
+import UserSettingsSecurity from './UserSettingsSecurity.vue'
 
 let currentComponent = shallowRef(AccountList) 
 
@@ -32,6 +33,9 @@ function updateView(event) {
       break;
     case 'documents':
       currentComponent.value = ReportList;
+      break;
+    case 'settings':
+      currentComponent.value = UserSettingsSecurity;
       break;
     default:
       console.warn(`Unknown view requested: ${view}. Setting default.`);
