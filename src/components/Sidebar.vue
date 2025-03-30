@@ -99,8 +99,4 @@ nav a.active {
   color: #ffffff;
   font-weight: 600;
 }
-
-nav a:last-of-type {
-    margin-top: 20px;
-}
 </style>

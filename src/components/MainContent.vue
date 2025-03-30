@@ -13,6 +13,7 @@ import { onMounted, onBeforeUnmount, shallowRef } from 'vue'
 import TaxCalendar from './TaxCalendar.vue'
 import TransactionList from './TransactionList.vue'
 import AccountList from './AccountList.vue'
+import ReportList from './ReportList.vue'
 
 let currentComponent = shallowRef(AccountList) 
 
@@ -28,6 +29,9 @@ function updateView(event) {
       break;
     case 'profile':
       currentComponent.value = AccountList;
+      break;
+    case 'documents':
+      currentComponent.value = ReportList;
       break;
     default:
       console.warn(`Unknown view requested: ${view}. Setting default.`);
