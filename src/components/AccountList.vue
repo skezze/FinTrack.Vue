@@ -24,60 +24,119 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import AccountCard from './AccountCard.vue'; // Убедитесь, что путь правильный
-import apiClient from '@/api/client';     // Убедитесь, что путь правильный
+import AccountCard from './AccountCard.vue';
+import apiClient from '@/api/client';
 
-// Реактивное состояние
-const isLoading = ref(false);
+// --- Константы для ключей localStorage ---
+const ACCOUNTS_CACHE_KEY = 'userAccounts';
+const SELECTED_ACCOUNT_ID_KEY = 'selectedAccountId';
+
+// --- Реактивное состояние ---
+const isLoading = ref(false); // Теперь больше для фонового обновления
 const error = ref(null);
-const accounts = ref([]); // Здесь будут храниться счета, загруженные с API
+const accounts = ref([]); // Основной массив для отображения
 
-// Функция для загрузки информации о клиенте (включая счета)
+// --- Функция загрузки ИЗ КЭША ---
+function loadFromCache() {
+  try {
+    const accountsJson = localStorage.getItem(ACCOUNTS_CACHE_KEY);
+    if (accountsJson) {
+      const cachedAccounts = JSON.parse(accountsJson);
+      if (Array.isArray(cachedAccounts) && cachedAccounts.length > 0) {
+        accounts.value = cachedAccounts; // Отображаем данные из кэша немедленно
+        console.log(`Loaded ${cachedAccounts.length} accounts from cache.`);
+        // Не устанавливаем isLoading = false здесь, т.к. фоновая загрузка еще идет
+        return true; // Сигнализируем, что кэш был загружен
+      }
+    }
+  } catch (e) {
+    console.error("Failed to parse cached accounts from localStorage:", e);
+    localStorage.removeItem(ACCOUNTS_CACHE_KEY); // Удаляем поврежденные данные
+  }
+  return false; // Кэш не загружен
+}
+
+// --- Функция загрузки СВЕЖИХ данных с API (и обновления кэша) ---
 async function fetchClientInfo() {
-  isLoading.value = true;
-  error.value = null;
-  accounts.value = []; // Очищаем перед загрузкой
+  // Устанавливаем isLoading только если кэш НЕ был загружен ранее
+  if (accounts.value.length === 0) {
+      isLoading.value = true;
+  }
+  error.value = null; // Сбрасываем ошибку перед запросом
 
   try {
-    // Выполняем GET-запрос к эндпоинту /Monobank/GetClientInfo
     const response = await apiClient.get('/Monobank/GetClientInfo');
+    console.log("GetClientInfo API Response:", response);
 
-    // Проверяем, что ответ содержит данные и массив счетов
     if (response.data && Array.isArray(response.data.accounts)) {
-      accounts.value = response.data.accounts; // Присваиваем массив счетов из ответа
+      const freshAccounts = response.data.accounts;
+      accounts.value = freshAccounts; // Обновляем отображаемый список свежими данными
+
+      // --- Обновляем кэш в localStorage ---
+      if (freshAccounts.length > 0) {
+        try {
+          const accountsJson = JSON.stringify(freshAccounts);
+          localStorage.setItem(ACCOUNTS_CACHE_KEY, accountsJson);
+          console.log(`Refreshed cache with ${freshAccounts.length} accounts.`);
+
+          // Обновляем ID первого счета в кэше
+          const firstAccountId = freshAccounts[0].id;
+          if (firstAccountId) {
+            localStorage.setItem(SELECTED_ACCOUNT_ID_KEY, firstAccountId);
+            console.log(`Refreshed selected accountId in cache to '${firstAccountId}'.`);
+          } else {
+            localStorage.removeItem(SELECTED_ACCOUNT_ID_KEY);
+          }
+
+        } catch (e) {
+          console.error("Failed to save fresh accounts data to localStorage:", e);
+          // Не показываем ошибку пользователю, т.к. данные уже отображены
+        }
+      } else {
+         // Если с API пришел пустой список, очищаем кэш
+         localStorage.removeItem(ACCOUNTS_CACHE_KEY);
+         localStorage.removeItem(SELECTED_ACCOUNT_ID_KEY);
+         console.log("Received empty account list, cleared cache.");
+      }
+      // --- Конец обновления кэша ---
+
     } else {
       console.warn('Received unexpected data structure from GetClientInfo:', response.data);
-      accounts.value = []; // Оставляем пустым, если структура не та
+       // Не очищаем accounts.value, чтобы не сбрасывать кэш, если API временно глючит
+       error.value = "Отримана некоректна структура даних від сервера.";
     }
 
   } catch (err) {
     console.error("Failed to fetch client info:", err);
-    error.value = "Не вдалося завантажити інформацію про рахунки.";
-    // Добавляем детали ошибки, если они есть
-    if (err.response) {
-        error.value += ` (Помилка сервера: ${err.response.status})`;
-    } else if (err.request) {
-        error.value += ` (Сервер не відповідає)`;
-    }
+     // Показываем ошибку только если не удалось загрузить даже кэш
+     if (accounts.value.length === 0) {
+         error.value = "Не вдалося завантажити інформацію про рахунки.";
+         if (err.response) { error.value += ` (Помилка сервера: ${err.response.status})`; }
+         else if (err.request) { error.value += ` (Сервер не відповідає)`; }
+     } else {
+          console.warn("Failed to fetch fresh data, keeping cached version."); // Не показываем ошибку пользователю, если есть кэш
+     }
   } finally {
-    isLoading.value = false;
+    isLoading.value = false; // Убираем индикатор загрузки в любом случае
   }
 }
 
-// Обработчик события для просмотра деталей (пока просто выводит в консоль)
-function handleViewDetails(accountId) {
-  console.log('Need to view details for account ID:', accountId);
-  // Здесь в будущем будет логика перехода на страницу деталей счета,
-  // например, с использованием vue-router: router.push(`/accounts/${accountId}`)
-}
-
-// Вызываем функцию загрузки данных при монтировании компонента
+// --- Логика при монтировании ---
 onMounted(() => {
+  // 1. Пытаемся загрузить из кэша для быстрого отображения
+  const cacheLoaded = loadFromCache();
+
+  // 2. В любом случае запускаем фоновое обновление с API
   fetchClientInfo();
+
+  // Устанавливаем isLoading=true только если кэш был пуст
+  if (!cacheLoaded) {
+      isLoading.value = true;
+  }
 });
 
-// Возвращать переменные и функции не нужно в <script setup>,
-// они автоматически доступны в <template>
+// --- Функция handleViewDetails удалена, т.к. она больше не нужна ---
+
 </script>
 
 <style scoped>
