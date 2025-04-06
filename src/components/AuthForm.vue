@@ -1,16 +1,17 @@
 <template>
   <div class="auth-form">
     <div class="form-box">
-      <h2>{{ isLogin ? 'Вхід' : 'Реєстрація' }}</h2> <div class="input-group">
-         <label for="login-input">Логін</label>
-         <input id="login-input" v-model="login" type="text" placeholder="Введіть ваш логін" />
+      <h2>{{ isLogin ? 'Вхід' : 'Реєстрація' }}</h2>
+      <div class="input-group">
+        <label for="login-input">Логін</label>
+        <input id="login-input" v-model="login" type="text" placeholder="Введіть ваш логін" />
       </div>
       <div class="input-group">
-         <label for="password-input">Пароль</label>
-         <input id="password-input" v-model="password" type="password" placeholder="Введіть ваш пароль" />
+        <label for="password-input">Пароль</label>
+        <input id="password-input" v-model="password" type="password" placeholder="Введіть ваш пароль" />
       </div>
 
-       <button @click="handleSubmit" :disabled="isLoading">
+      <button @click="handleSubmit" :disabled="isLoading">
         {{ isLoading ? 'Зачекайте...' : (isLogin ? 'Увійти' : 'Зареєструватись') }}
       </button>
 
@@ -19,80 +20,122 @@
         <a href="#" @click.prevent="toggleMode">{{ isLogin ? 'Зареєструватись' : 'Увійти' }}</a>
       </p>
 
-       <p v-if="error" class="error-message">{{ error }}</p>
+      <p v-if="error" class="error-message">{{ error }}</p>
 
     </div>
   </div>
 </template>
 
 <script setup>
-import { host } from '@/enviroment'
-import { ref } from 'vue'
-import axios from 'axios'
-import { removeToken, saveToken } from '@/helpers/auth'
+// --- ИЗМЕНЕНИЯ НАЧАЛО ---
+// Убираем прямой импорт axios и host
+// import { host } from '@/enviroment'; // Больше не нужен здесь
+// import axios from 'axios'; // Больше не нужен здесь
 
-const login = ref('')
-const password = ref('')
-const isLogin = ref(true)
-const isLoading = ref(false)
-const error = ref(null)
+// Импортируем настроенный клиент API
+import apiClient from '@/api/client'; // Укажите правильный путь к вашему файлу!
+// --- ИЗМЕНЕНИЯ КОНЕЦ ---
 
+import { ref } from 'vue';
+import { removeToken, saveToken } from '@/helpers/auth'; // Импортируем хелперы для токена
+
+// Состояние компонента (остается без изменений)
+const login = ref('');
+const password = ref('');
+const isLogin = ref(true);
+const isLoading = ref(false);
+const error = ref(null);
+
+// Переключение режима Вход/Регистрация (остается без изменений)
 function toggleMode() {
-  isLogin.value = !isLogin.value
-  error.value = null
+  isLogin.value = !isLogin.value;
+  error.value = null; // Сбрасываем ошибку при смене режима
 }
 
+// Обработка отправки формы
 async function handleSubmit() {
-  error.value = null
-  isLoading.value = true
+  error.value = null; // Сброс предыдущей ошибки
+  isLoading.value = true;
 
+  // Простая валидация на клиенте (остается без изменений)
   if (!login.value || !password.value) {
-      error.value = 'Будь ласка, заповніть логін та пароль.';
-      isLoading.value = false;
-      return;
+    error.value = 'Будь ласка, заповніть логін та пароль.';
+    isLoading.value = false;
+    return;
   }
 
-  const url = isLogin.value ? `${host}/SignIn/Login` : `${host}/SignIn/Register`;
+  // Определяем URL эндпоинта (теперь относительный, без host)
+  const url = isLogin.value ? `/SignIn/Login` : `/User/AddUser`; // <-- ИЗМЕНЕНИЕ: относительный URL
+
+  // Данные для отправки (остаются без изменений)
   const payload = {
     username: login.value,
     password: password.value
   };
 
   try {
-      const response = await axios.post(url, payload, {
-        headers: {
-          'Accept': '*/*',
-          'Content-Type': 'application/json'
-        }
-      });
+    // --- ИЗМЕНЕНИЕ НАЧАЛО ---
+    // Используем настроенный apiClient вместо axios.post
+    // Заголовки Content-Type и Accept должны быть настроены по умолчанию в apiClient
+    // Заголовок Authorization будет автоматически добавлен interceptor'ом (для других запросов)
+    const response = await apiClient.post(url, payload);
+    // --- ИЗМЕНЕНИЕ КОНЕЦ ---
 
-      console.log('Response:', response);
+    console.log('Response:', response); // Для отладки
 
-      if (isLogin.value && response.data) {
-          removeToken();
-          saveToken(response.data);
-           window.location.href = '/';
-      } else if (!isLogin.value) {
-          alert('Реєстрація успішна! Тепер ви можете увійти.');
-          isLogin.value = true;
-      } else {
-          throw new Error('Не вдалося обробити відповідь сервера.');
-      }
+    // Обработка успешного ответа (логика остается прежней)
+    if (isLogin.value && response.data) {
+      // Успешный вход
+      removeToken(); // Очищаем старый токен на всякий случай
+      saveToken(response.data); // Сохраняем новый токен из ответа API
+      // Перенаправление на главную страницу (или в дашборд)
+      // Рекомендуется использовать vue-router, если он настроен: router.push('/')
+      window.location.href = '/';
+    } else if (!isLogin.value) {
+      // Успешная регистрация (предполагаем, что API возвращает статус 200/201 без токена)
+      alert('Реєстрація успішна! Тепер ви можете увійти.');
+      // Переключаем форму в режим входа
+      isLogin.value = true;
+      login.value = ''; // Очищаем поля для удобства
+      password.value = '';
+    } else {
+      // Неожиданный ответ при логине (например, нет данных)
+      throw new Error('Не вдалося обробити відповідь сервера.');
+    }
 
   } catch (err) {
-      console.error('Auth Error:', err);
-      if (err.response) {
-          error.value = err.response.data?.message || err.response.data?.title || `Помилка: ${err.response.status}`;
-      } else if (err.request) {
-          error.value = 'Не вдалося підключитися до сервера.';
+    // Обработка ошибок (логика остается прежней, но может быть дополнена interceptor'ом ответов в apiClient)
+    console.error('Auth Error:', err);
+    if (err.response) {
+      // Ошибка от сервера (4xx, 5xx)
+      if (err.response.status === 401 && isLogin.value) {
+         error.value = 'Неправильний логін або пароль.'; // Более специфичное сообщение для 401 при входе
       } else {
-          error.value = 'Помилка запиту. Спробуйте ще раз.';
+         error.value = err.response.data?.message
+                    || err.response.data?.title
+                    || (err.response.data && typeof err.response.data === 'string' ? err.response.data : null) // Попытка извлечь строку ошибки
+                    || `Помилка сервера: ${err.response.status}`;
       }
+       // Можно добавить обработку ошибок валидации при регистрации (err.response.data.errors)
+        if (!isLogin.value && err.response.data?.errors) {
+            const errors = Object.values(err.response.data.errors).flat();
+            error.value = `Помилка реєстрації: ${errors.join(' ')}`;
+        }
+
+    } else if (err.request) {
+      // Запрос был сделан, но ответ не получен (проблемы сети, сервер недоступен)
+      error.value = 'Не вдалося підключитися до сервера. Перевірте з\'єднання.';
+    } else {
+      // Ошибка настройки запроса или другая внутренняя ошибка
+      error.value = 'Виникла помилка під час відправки запиту.';
+    }
   } finally {
-      isLoading.value = false;
+    // В любом случае убираем индикатор загрузки (остается без изменений)
+    isLoading.value = false;
   }
 }
 
+// Функция для Google входа (остается без изменений)
 async function loginWithGoogle() {
   console.log('Login with Google clicked');
   error.value = 'Вхід через Google ще не реалізовано.';
@@ -100,6 +143,7 @@ async function loginWithGoogle() {
 </script>
 
 <style scoped>
+/* Стили остаются без изменений */
 .auth-form {
   width: 100vw;
   min-height: 100vh;
@@ -148,7 +192,7 @@ input[type="password"] {
   width: 100%;
   padding: 12px 16px;
   font-size: 16px;
-  border: 1px solid #dcb7ae; 
+  border: 1px solid #dcb7ae;
   border-radius: 8px;
   background-color: #fff;
   box-sizing: border-box;
@@ -200,39 +244,6 @@ button:disabled {
 
 .switch-mode a:hover {
   text-decoration: underline;
-}
-
-.divider {
-    margin: 25px 0;
-    text-align: center;
-    border-bottom: 1px solid #e0cbae;
-    line-height: 0.1em;
-}
-.divider span {
-    background:#fce1bb;
-    padding:0 10px;
-    color: #aaa;
-    font-size: 0.9em;
-}
-
-.btn-google {
-    background-color: #fff;
-    color: #444;
-    border: 1px solid #ccc;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 0;
-    font-size: 16px;
-    padding: 10px 16px;
-}
-.btn-google:hover:not(:disabled) {
-    background-color: #f9f9f9;
-}
-.btn-google img {
-    width: 18px;
-    height: 18px;
 }
 
 .error-message {

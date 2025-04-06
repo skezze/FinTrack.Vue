@@ -17,35 +17,71 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { removeToken } from '@/helpers/auth'
+import { getToken, removeToken } from '@/helpers/auth'; // Импортируем хелперы
+import { jwtDecode } from 'jwt-decode'; // Импортируем декодер JWT
 
+// Реактивное состояние для статуса входа и данных пользователя
 const isLoggedIn = ref(false);
-const user = ref(null);
+const user = ref(null); // Здесь будет объект { name: '...' }
 
-onMounted(async () => {
-  const simulateLogin = true;
-  if (simulateLogin) {
-      isLoggedIn.value = true;
-      user.value = {
-          name: 'Володимир К.',
-          email: 'v.k@example.com',
-          avatarUrl: null
-      };
-  } else {
+// Хук onMounted срабатывает один раз при загрузке компонента
+onMounted(() => {
+  const token = getToken(); // Пытаемся получить токен
+
+  if (token) {
+    try {
+      const decodedToken = jwtDecode(token); // Декодируем токен
+      console.log("Decoded token for header:", decodedToken); // Для отладки
+
+      // Извлекаем имя пользователя (логин) из токена
+      // Ищем стандартные claim'ы: unique_name или name
+      const usernameClaim = decodedToken.unique_name || decodedToken.name || null;
+
+      if (usernameClaim) {
+        // Если нашли имя пользователя, считаем, что пользователь вошел
+        isLoggedIn.value = true;
+        user.value = {
+          name: usernameClaim, // Отображаем имя пользователя из токена
+          avatarUrl: null // Аватара пока нет, будет дефолтный
+          // Сюда можно добавить email или другие данные из токена, если они нужны в хедере
+          // email: decodedToken.email || null
+        };
+      } else {
+        // Токен есть, но нужного claim'а нет - считаем невалидным для сессии
+        console.warn("Username claim (unique_name or name) not found in token.");
+        isLoggedIn.value = false;
+        user.value = null;
+        removeToken(); // Удаляем "плохой" токен
+      }
+
+    } catch (error) {
+      // Ошибка декодирования (токен истек или поврежден)
+      console.error("Error decoding token for header:", error);
       isLoggedIn.value = false;
       user.value = null;
+      removeToken(); // Удаляем невалидный токен
+    }
+  } else {
+    // Токена нет - пользователь не вошел
+    isLoggedIn.value = false;
+    user.value = null;
   }
-
 });
 
+// Обработчик для кнопки "Увійти"
 function handleLogin() {
-  console.log('Переход на страницу входа...');
-  alert('Потрібно реалізувати логіку входу!');
+  console.log('Redirecting to login page...');
+  // Перенаправляем на страницу аутентификации
+  window.location.href = '/auth'; // Или используйте vue-router: router.push('/auth')
 }
 
+// Обработчик для кнопки "Вийти" (остается без изменений)
 function handleLogout() {
-  removeToken()
-  window.location.href = '/auth'
+  removeToken(); // Удаляем токен
+  isLoggedIn.value = false; // Обновляем состояние
+  user.value = null;
+  window.location.href = '/auth'; // Перенаправляем на страницу входа
+  // Или window.location.reload(); чтобы перезагрузить страницу и обновить состояние
 }
 </script>
 
