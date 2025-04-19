@@ -27,115 +27,81 @@
 </template>
 
 <script setup>
-// --- ИЗМЕНЕНИЯ НАЧАЛО ---
-// Убираем прямой импорт axios и host
-// import { host } from '@/enviroment'; // Больше не нужен здесь
-// import axios from 'axios'; // Больше не нужен здесь
-
-// Импортируем настроенный клиент API
-import apiClient from '@/api/client'; // Укажите правильный путь к вашему файлу!
-// --- ИЗМЕНЕНИЯ КОНЕЦ ---
+import apiClient from '@/api/client';
 
 import { ref } from 'vue';
-import { removeToken, saveToken } from '@/helpers/auth'; // Импортируем хелперы для токена
+import { removeToken, saveToken } from '@/helpers/auth';
 
-// Состояние компонента (остается без изменений)
 const login = ref('');
 const password = ref('');
 const isLogin = ref(true);
 const isLoading = ref(false);
 const error = ref(null);
 
-// Переключение режима Вход/Регистрация (остается без изменений)
 function toggleMode() {
   isLogin.value = !isLogin.value;
-  error.value = null; // Сбрасываем ошибку при смене режима
+  error.value = null;
 }
 
-// Обработка отправки формы
 async function handleSubmit() {
-  error.value = null; // Сброс предыдущей ошибки
+  error.value = null;
   isLoading.value = true;
 
-  // Простая валидация на клиенте (остается без изменений)
   if (!login.value || !password.value) {
     error.value = 'Будь ласка, заповніть логін та пароль.';
     isLoading.value = false;
     return;
   }
 
-  // Определяем URL эндпоинта (теперь относительный, без host)
-  const url = isLogin.value ? `/SignIn/Login` : `/User/AddUser`; // <-- ИЗМЕНЕНИЕ: относительный URL
+  const url = isLogin.value ? `/SignIn/Login` : `/User/AddUser`;
 
-  // Данные для отправки (остаются без изменений)
   const payload = {
     username: login.value,
     password: password.value
   };
 
   try {
-    // --- ИЗМЕНЕНИЕ НАЧАЛО ---
-    // Используем настроенный apiClient вместо axios.post
-    // Заголовки Content-Type и Accept должны быть настроены по умолчанию в apiClient
-    // Заголовок Authorization будет автоматически добавлен interceptor'ом (для других запросов)
     const response = await apiClient.post(url, payload);
-    // --- ИЗМЕНЕНИЕ КОНЕЦ ---
 
-    console.log('Response:', response); // Для отладки
-
-    // Обработка успешного ответа (логика остается прежней)
     if (isLogin.value && response.data) {
-      // Успешный вход
-      removeToken(); // Очищаем старый токен на всякий случай
-      saveToken(response.data); // Сохраняем новый токен из ответа API
-      // Перенаправление на главную страницу (или в дашборд)
-      // Рекомендуется использовать vue-router, если он настроен: router.push('/')
+      removeToken();
+      saveToken(response.data);
       window.location.href = '/';
     } else if (!isLogin.value) {
-      // Успешная регистрация (предполагаем, что API возвращает статус 200/201 без токена)
       alert('Реєстрація успішна! Тепер ви можете увійти.');
-      // Переключаем форму в режим входа
       isLogin.value = true;
-      login.value = ''; // Очищаем поля для удобства
+      login.value = '';
       password.value = '';
     } else {
-      // Неожиданный ответ при логине (например, нет данных)
       throw new Error('Не вдалося обробити відповідь сервера.');
     }
 
   } catch (err) {
-    // Обработка ошибок (логика остается прежней, но может быть дополнена interceptor'ом ответов в apiClient)
     console.error('Auth Error:', err);
     if (err.response) {
-      // Ошибка от сервера (4xx, 5xx)
       if (err.response.status === 401 && isLogin.value) {
-         error.value = 'Неправильний логін або пароль.'; // Более специфичное сообщение для 401 при входе
+         error.value = 'Неправильний логін або пароль.';
       } else {
          error.value = err.response.data?.message
                     || err.response.data?.title
-                    || (err.response.data && typeof err.response.data === 'string' ? err.response.data : null) // Попытка извлечь строку ошибки
+                    || (err.response.data && typeof err.response.data === 'string' ? err.response.data : null)
                     || `Помилка сервера: ${err.response.status}`;
       }
-       // Можно добавить обработку ошибок валидации при регистрации (err.response.data.errors)
         if (!isLogin.value && err.response.data?.errors) {
             const errors = Object.values(err.response.data.errors).flat();
             error.value = `Помилка реєстрації: ${errors.join(' ')}`;
         }
 
     } else if (err.request) {
-      // Запрос был сделан, но ответ не получен (проблемы сети, сервер недоступен)
       error.value = 'Не вдалося підключитися до сервера. Перевірте з\'єднання.';
     } else {
-      // Ошибка настройки запроса или другая внутренняя ошибка
       error.value = 'Виникла помилка під час відправки запиту.';
     }
   } finally {
-    // В любом случае убираем индикатор загрузки (остается без изменений)
     isLoading.value = false;
   }
 }
 
-// Функция для Google входа (остается без изменений)
 async function loginWithGoogle() {
   console.log('Login with Google clicked');
   error.value = 'Вхід через Google ще не реалізовано.';
@@ -143,7 +109,6 @@ async function loginWithGoogle() {
 </script>
 
 <style scoped>
-/* Стили остаются без изменений */
 .auth-form {
   width: 100vw;
   min-height: 100vh;
@@ -256,5 +221,4 @@ button:disabled {
   font-size: 0.9rem;
   text-align: center;
 }
-
 </style>

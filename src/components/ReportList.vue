@@ -39,30 +39,22 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import apiClient from '@/api/client'; // Ваш API клиент
-// Предположим, есть способ получить список счетов для выбора
-// import { useAccountStore } from '@/stores/accountStore';
+import apiClient from '@/api/client';
 
-// --- Состояние для генерации ---
 const isGenerating = ref(false);
 const generationError = ref(null);
-const generationSuccess = ref(false); // Флаг для показа сообщения об успехе
+const generationSuccess = ref(false);
 
-// --- Параметры для генерации отчета ---
-const selectedAccountId = ref(''); // ID выбранного счета
-const startDate = ref('');           // Дата начала периода
-const endDate = ref('');             // Дата конца периода
-const signDocument = ref(true);    // Флаг подписи документа
+const selectedAccountId = ref('');
+const startDate = ref('');
+const endDate = ref('');
+const signDocument = ref(true);
 
-// --- Данные для выбора счета (пример) ---
-const availableAccounts = ref([]); // Сюда нужно загрузить счета пользователя
+const availableAccounts = ref([]);
 
-// --- Функция для загрузки доступных счетов (пример) ---
 async function fetchAvailableAccounts() {
-    // Загружаем счета, например, из того же эндпоинта, что и для AccountList
-    // или из Pinia store
      try {
-        const response = await apiClient.get('/Monobank/GetClientInfo'); // Пример
+        const response = await apiClient.get('/Monobank/GetClientInfo');
         if (response.data && Array.isArray(response.data.accounts)) {
             availableAccounts.value = response.data.accounts;
         }
@@ -72,7 +64,6 @@ async function fetchAvailableAccounts() {
      }
 }
 
-// --- Функция для обработки создания/скачивания отчета ---
 async function handleCreateReport() {
   if (!selectedAccountId.value) {
       generationError.value = "Будь ласка, виберіть рахунок.";
@@ -83,57 +74,46 @@ async function handleCreateReport() {
   generationError.value = null;
   generationSuccess.value = false;
 
-  // Формируем тело запроса для POST /api/Report/Generate
   const requestPayload = {
     accountId: selectedAccountId.value,
-    startDate: startDate.value || null, // Отправляем null, если дата не выбрана
+    startDate: startDate.value || null,
     endDate: endDate.value || null,
     signDocument: signDocument.value,
-    reportType: "TransactionSummary" // Пример типа
+    reportType: "TransactionSummary"
   };
 
   try {
     debugger;
     console.log("Requesting report generation with payload:", requestPayload);
-    // Выполняем POST запрос, ОЖИДАЯ В ОТВЕТЕ ДВОИЧНЫЕ ДАННЫЕ (Blob)
     const response = await apiClient.post('/Report/Generate', requestPayload, {
-      responseType: 'blob' // <<<--- КРИТИЧЕСКИ ВАЖНО для получения файла!
+      responseType: 'blob'
     });
 
-    // Проверяем тип ответа
      if (response.data.type !== 'application/pdf') {
         throw new Error('Сервер повернув не PDF файл.');
      }
 
-    // Создаем Blob из ответа
     const fileBlob = new Blob([response.data], { type: 'application/pdf' });
 
-    // Создаем временный URL для Blob
     const pdfUrl = URL.createObjectURL(fileBlob);
 
-    // Формируем имя файла для скачивания
     const downloadFileName = `Report_${selectedAccountId.value}_${new Date().toISOString().slice(0,10)}.pdf`;
 
-    // --- Вариант 1: Открыть PDF в новой вкладке ---
-    // window.open(pdfUrl, '_blank');
-
-    // --- Вариант 2: Инициировать скачивание файла ---
     const link = document.createElement('a');
     link.href = pdfUrl;
-    link.setAttribute('download', downloadFileName); // Имя файла при скачивании
+    link.setAttribute('download', downloadFileName);
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link); // Удаляем временную ссылку
+    document.body.removeChild(link);
 
-    // Освобождаем созданный URL через некоторое время
     setTimeout(() => URL.revokeObjectURL(pdfUrl), 100);
 
-    generationSuccess.value = true; // Показываем сообщение об успехе
+    generationSuccess.value = true;
 
   } catch (err) {
     console.error("Failed to generate or download report:", err);
     generationError.value = "Не вдалося згенерувати або завантажити звіт.";
-    // Пытаемся извлечь текст ошибки, если сервер вернул JSON с ошибкой вместо Blob
+    
      if (err.response && err.response.data && err.response.data instanceof Blob && err.response.data.type === 'application/json') {
           try {
               const errorJson = JSON.parse(await err.response.data.text());
@@ -147,12 +127,10 @@ async function handleCreateReport() {
   }
 }
 
-// Загрузка счетов при монтировании
 onMounted(() => {
     fetchAvailableAccounts();
 });
 
-// Вспомогательная функция для форматирования валюты (пример)
 function formatCurrency(amount, currencyCode) {
     const currencies = { 980: 'UAH', 840: 'USD', 978: 'EUR' };
     const symbol = currencies[currencyCode] || `Code ${currencyCode}`;
@@ -163,14 +141,13 @@ function formatCurrency(amount, currencyCode) {
 </script>
 
 <style scoped>
-/* Стили можно взять из вашего предыдущего ReportList или адаптировать */
 .report-generator-container {
   padding: 1.5rem;
   background-color: #fff;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
   font-family: sans-serif;
-  max-width: 800px; /* Ограничим ширину для удобства */
+  max-width: 800px;
   margin: 2rem auto;
 }
 
@@ -187,7 +164,7 @@ h2 {
 .actions-panel {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end; /* Выравниваем по нижнему краю */
+  align-items: flex-end;
   gap: 1rem;
   margin-bottom: 2rem;
   padding: 1rem;
@@ -214,7 +191,7 @@ h2 {
   border-radius: 6px;
   font-size: 0.95rem;
   background-color: #fff;
-  min-width: 150px; /* Минимальная ширина */
+  min-width: 150px;
 }
 
 .btn-create-report {
@@ -230,8 +207,8 @@ h2 {
   align-items: center;
   gap: 0.5rem;
   transition: background-color 0.2s ease;
-  height: 38px; /* Выравниваем высоту с инпутами */
-  align-self: flex-end; /* Прижимаем к нижнему краю */
+  height: 38px;
+  align-self: flex-end;
 }
 
 .btn-create-report .icon {
@@ -251,8 +228,8 @@ h2 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-left: auto; /* Прижимаем вправо */
-   padding-bottom: 8px; /* Выравниваем по линии с кнопкой */
+  margin-left: auto;
+   padding-bottom: 8px;
 }
 
 .sign-option input[type="checkbox"] {

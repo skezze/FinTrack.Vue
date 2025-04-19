@@ -43,7 +43,6 @@
     emit('view', props.report);
   }
   
-  // Утилитарные функции
   function formatDate(dateString) {
     if (!dateString) return 'N/A';
     try {

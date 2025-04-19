@@ -123,7 +123,7 @@ function generateFopEvents(year) {
   const prevEpMonth = epMonths[prevQ-1];
 
   events.push({
-      id: `y${prevYear}_q${prevQ}_esv`, type: 'payment_esv', title: 'Сплата ЄСВ', quarter: prevQ, month: prevEsvMonth, year: year, status: 'info', // Год дедлайна = текущий (year)
+      id: `y${prevYear}_q${prevQ}_esv`, type: 'payment_esv', title: 'Сплата ЄСВ', quarter: prevQ, month: prevEsvMonth, year: year, status: 'info',
       details: { deadline: `До ${esvDeadlineDay} ${getMonthNameGenitive(prevEsvMonth)} ${year}р.`, description: `Єдиний Соціальний Внесок за ${getQuarterNameRoman(prevQ)} квартал ${prevYear}р.`, notes: 'Сплачується щоквартально.' }
   });
   events.push({

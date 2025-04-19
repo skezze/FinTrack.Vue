@@ -47,25 +47,22 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'; // Добавляем onMounted
-import TransactionItem from './TransactionItem.vue'; // Убедитесь, что путь правильный
-import apiClient from '@/api/client'; // Убедитесь, что путь правильный
+import { ref, computed, watch, onMounted } from 'vue';
+import TransactionItem from './TransactionItem.vue';
+import apiClient from '@/api/client';
 
-// Ref для хранения ВСЕХ транзакций с сервера
 const allTransactions = ref([]);
-// Refs для состояния загрузки и ошибок
+
 const isLoading = ref(false);
 const error = ref(null);
 
-// Refs для фильтров и пагинации
 const searchQuery = ref('');
 const startDate = ref('');
 const endDate = ref('');
-const sortOrder = ref('desc'); // По умолчанию сортируем по убыванию
+const sortOrder = ref('desc');
 const currentPage = ref(1);
-const itemsPerPage = 5; // Количество элементов на странице
+const itemsPerPage = 5;
 
-// Debounce для поля поиска
 const debouncedSearchQuery = ref('');
 let debounceTimer = null;
 
@@ -73,11 +70,10 @@ watch(searchQuery, (newValue) => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     debouncedSearchQuery.value = newValue;
-    currentPage.value = 1; // Сброс на первую страницу при изменении поиска
-  }, 350); // Задержка debounce в мс
+    currentPage.value = 1;
+  }, 350);
 });
 
-// Функция сброса фильтров
 function clearFilters() {
   searchQuery.value = '';
   startDate.value = '';
@@ -86,53 +82,42 @@ function clearFilters() {
   currentPage.value = 1;
 }
 
-// Функция для асинхронной загрузки ВСЕХ транзакций с бэкенда
 async function fetchTransactions() {
   isLoading.value = true;
   error.value = null;
-  allTransactions.value = []; // Очищаем массив перед загрузкой
+  allTransactions.value = [];
 
   try {
-    // Используем GET-запрос к вашему эндпоинту, который возвращает ВСЕ транзакции
-    // Предполагается, что эндпоинт '/Monobank/GetTransactionsAsync' возвращает массив объектов MonobankTransaction
     const response = await apiClient.get('/Monobank/GetTransactions');
 
-    // Сохраняем полученные данные в allTransactions
-    // Добавляем проверку, что response.data существует и является массивом
     allTransactions.value = Array.isArray(response.data) ? response.data : [];
 
-    // Опционально: первоначальная сортировка при загрузке (например, по времени по убыванию)
     allTransactions.value.sort((a, b) => b.time - a.time);
 
   } catch (err) {
     console.error("Failed to fetch transactions:", err);
-    error.value = "Не вдалося завантажити транзакції."; // Сообщение об ошибке для пользователя
-    // Добавляем детали ошибки, если они есть
+    error.value = "Не вдалося завантажити транзакції.";
+
      if (err.response) {
          error.value += ` (Помилка сервера: ${err.response.status})`;
      } else if (err.request) {
          error.value += ` (Сервер не відповідає)`;
      }
   } finally {
-    isLoading.value = false; // В любом случае убираем индикатор загрузки
+    isLoading.value = false;
   }
 }
 
-// Вызываем функцию загрузки данных один раз при монтировании компонента
 onMounted(() => {
   fetchTransactions();
 });
 
-// Computed property для фильтрации и сортировки массива allTransactions
 const filteredTransactions = computed(() => {
-  // Начинаем с полного массива загруженных транзакций
   let transactionsToFilter = [...allTransactions.value];
 
-  // --- Фильтрация ---
   const lowerQuery = debouncedSearchQuery.value.toLowerCase().trim();
   if (lowerQuery) {
     transactionsToFilter = transactionsToFilter.filter(tx =>
-      // Проверяем наличие свойств перед вызовом toLowerCase()
       tx.description?.toLowerCase().includes(lowerQuery) ||
       tx.comment?.toLowerCase().includes(lowerQuery) ||
       tx.counterName?.toLowerCase().includes(lowerQuery)
@@ -142,64 +127,50 @@ const filteredTransactions = computed(() => {
   if (startDate.value) {
     try {
       const startDt = new Date(startDate.value);
-      startDt.setHours(0, 0, 0, 0); // Устанавливаем время на начало дня
-      const startTimestamp = Math.floor(startDt.getTime() / 1000); // Конвертируем в Unix timestamp (секунды)
+      startDt.setHours(0, 0, 0, 0);
+      const startTimestamp = Math.floor(startDt.getTime() / 1000);
       transactionsToFilter = transactionsToFilter.filter(tx => tx.time >= startTimestamp);
-    } catch (e) { console.error("Invalid start date format", e); } // Ловим ошибку некорректной даты
+    } catch (e) { console.error("Invalid start date format", e); }
   }
 
   if (endDate.value) {
      try {
       const endDt = new Date(endDate.value);
-      endDt.setHours(23, 59, 59, 999); // Устанавливаем время на конец дня
-      const endTimestamp = Math.floor(endDt.getTime() / 1000); // Конвертируем в Unix timestamp (секунды)
+      endDt.setHours(23, 59, 59, 999);
+      const endTimestamp = Math.floor(endDt.getTime() / 1000);
       transactionsToFilter = transactionsToFilter.filter(tx => tx.time <= endTimestamp);
-     } catch (e) { console.error("Invalid end date format", e); } // Ловим ошибку некорректной даты
+     } catch (e) { console.error("Invalid end date format", e); }
   }
 
-  // --- Сортировка ---
   transactionsToFilter.sort((a, b) => {
-      // Пример сортировки по сумме (amount)
-      // Вы можете изменить поле или добавить другие условия сортировки
       if (sortOrder.value === 'desc') {
-         return b.amount - a.amount; // По убыванию суммы
+         return b.amount - a.amount;
      } else {
-         return a.amount - b.amount; // По возрастанию суммы
+         return a.amount - b.amount;
      }
-     // Если нужно сортировать по времени:
-     // return sortOrder.value === 'desc' ? b.time - a.time : a.time - b.time;
   });
 
-  // Возвращаем отфильтрованный и отсортированный массив
   return transactionsToFilter;
 });
 
-// Computed property для вычисления общего количества страниц
 const totalPages = computed(() => {
-    // Используем filteredTransactions для расчета страниц на основе отфильтрованных данных
-    if (!filteredTransactions.value || filteredTransactions.value.length === 0) return 1; // Минимум 1 страница
+    if (!filteredTransactions.value || filteredTransactions.value.length === 0) return 1;
     return Math.ceil(filteredTransactions.value.length / itemsPerPage);
 });
 
-// Computed property для получения транзакций текущей страницы
 const paginatedTransactions = computed(() => {
-  // Проверяем наличие filteredTransactions
   if (!filteredTransactions.value) return [];
 
-  // Корректируем currentPage, если он выходит за пределы после фильтрации
   if (currentPage.value > totalPages.value && totalPages.value > 0) {
       currentPage.value = totalPages.value;
   } else if (currentPage.value < 1) {
       currentPage.value = 1;
   }
 
-  // Вычисляем начальный индекс для slice
   const start = (currentPage.value - 1) * itemsPerPage;
-  // Возвращаем срез массива для текущей страницы
   return filteredTransactions.value.slice(start, start + itemsPerPage);
 })
 
-// Функции для переключения страниц
 function nextPage() {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
@@ -211,8 +182,6 @@ function prevPage() {
   }
 }
 
-// Наблюдатель для сброса текущей страницы на 1 при изменении фильтров или сортировки
-// (DebouncedSearchQuery уже обрабатывается в своем watch)
 watch([startDate, endDate, sortOrder], () => {
     currentPage.value = 1;
 });

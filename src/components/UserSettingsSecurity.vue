@@ -56,31 +56,26 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import apiClient from '@/api/client'; // Убедитесь, что путь правильный
-import { getToken, removeToken } from '@/helpers/auth'; // Импортируем getToken и removeToken
-import { jwtDecode } from 'jwt-decode'; // Для чтения данных из старого токена
+import apiClient from '@/api/client';
+import { getToken, removeToken } from '@/helpers/auth';
+import { jwtDecode } from 'jwt-decode';
 
-// --- Состояние ---
 const currentUserUsername = ref('');
 const currentUserEmail = ref('');
 const newUsername = ref('');
 const currentPasswordForUsernameChange = ref('');
 const isLoadingUsernameChange = ref(false);
-const successMessageUsername = ref(''); // Не будем использовать для сообщения об успехе перед редиректом
+const successMessageUsername = ref('');
 const errorMessageUsername = ref('');
 const currentPassword = ref('');
 const newPassword = ref('');
 const confirmPassword = ref('');
 const isLoadingPasswordChange = ref(false);
-const successMessagePassword = ref(''); // Не будем использовать для сообщения об успехе перед редиректом
+const successMessagePassword = ref('');
 const errorMessagePassword = ref('');
 
-// --- Методы ---
-
-// Обработчик смены Логина (Username)
 async function handleChangeUsername() {
   errorMessageUsername.value = '';
-  // successMessageUsername.value = ''; // Сообщение покажем через alert
 
   if (!newUsername.value || !currentPasswordForUsernameChange.value) {
     errorMessageUsername.value = 'Будь ласка, заповніть новий логін та поточний пароль.';
@@ -97,17 +92,13 @@ async function handleChangeUsername() {
       currentUsername: currentUserUsername.value,
       newUsername: newUsername.value,
       currentPassword: currentPasswordForUsernameChange.value,
-      newPassword: currentPasswordForUsernameChange.value // Пароль не меняем
+      newPassword: currentPasswordForUsernameChange.value
     };
-    // Вызываем PUT запрос к /User/UpdateUser (он вернет Ok() без токена)
     await apiClient.put('/User/UpdateUser', payload);
 
-    // --- УСПЕХ: Удаляем старый токен и заставляем перелогиниться ---
-    removeToken(); // Удаляем неактуальный токен
-    alert('Логін успішно змінено! Будь ласка, увійдіть знову, використовуючи новий логін.'); // Сообщаем пользователю
-    window.location.href = '/login'; // Перенаправляем на страницу входа
-    // Если используете vue-router: inject('router').push('/login'); или router.push('/login')
-    // --- КОНЕЦ ОБРАБОТКИ УСПЕХА ---
+    removeToken();
+    alert('Логін успішно змінено! Будь ласка, увійдіть знову, використовуючи новий логін.');
+    window.location.href = '/login';
 
   } catch (error) {
     console.error("Error updating username:", error);
@@ -118,12 +109,9 @@ async function handleChangeUsername() {
   }
 }
 
-// Обработчик смены Пароля
 async function handleChangePassword() {
   errorMessagePassword.value = '';
-  // successMessagePassword.value = ''; // Сообщение покажем через alert
 
-  // Валидация... (как была)
   if (!currentPassword.value || !newPassword.value || !confirmPassword.value) { /* ... */ return; }
   if (newPassword.value !== confirmPassword.value) { /* ... */ return; }
   if (newPassword.value.length < 6) { /* ... */ return; }
@@ -134,19 +122,15 @@ async function handleChangePassword() {
   try {
      const payload = {
         currentUsername: currentUserUsername.value,
-        newUsername: currentUserUsername.value, // Логин не меняем
+        newUsername: currentUserUsername.value,
         currentPassword: currentPassword.value,
         newPassword: newPassword.value
     };
-     // Вызываем PUT запрос к /User/UpdateUser (он вернет Ok() без токена)
     await apiClient.put('/User/UpdateUser', payload);
 
-    // --- УСПЕХ: Удаляем токен и заставляем перелогиниться ---
-    removeToken(); // Удаляем токен (хорошая практика после смены пароля)
-    alert('Пароль успішно змінено! Будь ласка, увійдіть знову з новим паролем.'); // Сообщаем пользователю
-    window.location.href = '/login'; // Перенаправляем на страницу входа
-    // Если используете vue-router: inject('router').push('/login'); или router.push('/login')
-    // --- КОНЕЦ ОБРАБОТКИ УСПЕХА ---
+    removeToken();
+    alert('Пароль успішно змінено! Будь ласка, увійдіть знову з новим паролем.');
+    window.location.href = '/login';
 
   } catch (error) {
     console.error("Error updating password:", error);
@@ -157,7 +141,6 @@ async function handleChangePassword() {
   }
 }
 
-// Функция парсинга ошибок Identity - без изменений
 function parseIdentityErrors(errorData) {
     let messages = [];
     if (Array.isArray(errorData)) {
@@ -168,47 +151,41 @@ function parseIdentityErrors(errorData) {
         } else if (errorData.title) { messages.push(errorData.title) }
         else if (errorData.message) { messages.push(errorData.message) }
     } else if (typeof errorData === 'string') { messages.push(errorData) }
-    if (messages.length === 0 && errorData) { // Общий случай, если парсинг не удался
+    if (messages.length === 0 && errorData) {
         messages.push("Сталася помилка.")
     }
     return messages;
 }
 
 
-// Получение данных пользователя из токена при загрузке - без изменений
 onMounted(() => {
   const token = getToken();
   if (token) {
     try {
       const decodedToken = jwtDecode(token);
       const usernameClaim = decodedToken.unique_name || decodedToken.name || null;
-      const emailClaim = decodedToken.email || null; // Email получаем для отображения, если он есть
+      const emailClaim = decodedToken.email || null;
       currentUserUsername.value = usernameClaim || 'Логін не знайдено';
-      currentUserEmail.value = emailClaim || 'Email не знайдено в токені'; // Показываем Email, если он есть
+      currentUserEmail.value = emailClaim || 'Email не знайдено в токені';
     } catch (error) {
       console.error("Error decoding token:", error);
       currentUserUsername.value = 'Помилка токена';
       currentUserEmail.value = '';
-      removeToken(); // Если токен плохой, лучше его удалить
-      // Возможно, перенаправить на логин
-      // window.location.href = '/login';
+      removeToken();
     }
   } else {
     console.error("No token found, cannot load user data.");
      currentUserUsername.value = 'Не авторизовано';
      currentUserEmail.value = '';
-     // Можно перенаправить на логин, если это не сама страница логина
-     // if (window.location.pathname !== '/login') window.location.href = '/login';
   }
 });
 
 </script>
 
 <style scoped>
-/* Стили остаются как в вашем примере */
  .settings-security {
    font-family: sans-serif;
-   padding: 1rem 0; /* Добавлены вертикальные отступы */
+   padding: 1rem 0;
  }
 
  h2 {
@@ -228,7 +205,7 @@ onMounted(() => {
    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.07);
  }
  .setting-section:last-of-type {
-     margin-bottom: 1rem; /* Уменьшаем отступ у последней секции */
+     margin-bottom: 1rem;
  }
 
 
@@ -240,7 +217,7 @@ onMounted(() => {
  }
 
  .setting-form {
-   max-width: 450px; /* Ограничиваем ширину формы */
+   max-width: 450px;
  }
 
  .form-group {
@@ -256,14 +233,14 @@ onMounted(() => {
  }
 
  .form-group input[type="email"],
- .form-group input[type="text"], /* Добавлено для username */
+ .form-group input[type="text"],
  .form-group input[type="password"] {
    width: 100%;
    padding: 0.6rem 0.8rem;
    border: 1px solid #ccc;
    border-radius: 6px;
    font-size: 1rem;
-   box-sizing: border-box; /* Учитываем padding/border */
+   box-sizing: border-box;
    transition: border-color 0.2s ease, box-shadow 0.2s ease;
  }
  .form-group input:disabled {
@@ -274,7 +251,7 @@ onMounted(() => {
 
  .form-group input:focus {
    outline: none;
-   border-color: #e18877; /* Цвет из предыдущих примеров */
+   border-color: #e18877;
    box-shadow: 0 0 0 2px rgba(225, 136, 119, 0.2);
  }
  .form-group small {
@@ -305,7 +282,7 @@ onMounted(() => {
  }
 
  .success-message {
-   color: #198754; /* Зеленый */
+   color: #198754;
    background-color: #d1e7dd;
    border: 1px solid #a3cfbb;
    padding: 0.8rem 1rem;
@@ -315,7 +292,7 @@ onMounted(() => {
  }
 
  .error-message {
-   color: #dc3545; /* Красный */
+   color: #dc3545;
    background-color: #f8d7da;
    border: 1px solid #f1aeb5;
    padding: 0.8rem 1rem;
